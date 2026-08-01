@@ -2,44 +2,64 @@ from django import forms
 from django.forms import modelformset_factory
 
 from . import portal_client
-from .models import Apparato, Credenziale, ParametroConfig, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
+from .models import Apparato, Credenziale, ParametroConfig, Progetto, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
 
 
-class ClienteScopedForm(forms.ModelForm):
-    """Base per i form che appartengono a un cliente dell'anagrafica
-    condivisa: il cliente non è scelto nel form (arriva dall'URL), viene
-    impostato in save()."""
+class ProgettoForm(forms.ModelForm):
+    cliente = forms.ChoiceField(label='Cliente')
 
-    def __init__(self, *args, cliente_id=None, **kwargs):
-        self._cliente_id = cliente_id
+    class Meta:
+        model = Progetto
+        fields = ['nome', 'indirizzo', 'descrizione']
+        widgets = {'descrizione': forms.Textarea(attrs={'rows': 4})}
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        choices = [('', '— seleziona —')]
+        try:
+            clienti = portal_client.list_clienti()
+        except portal_client.PortalUnavailableError as exc:
+            self.fields['cliente'].help_text = (
+                f"Impossibile contattare l'anagrafica clienti nel Portale: {exc}"
+            )
+        else:
+            choices += [(c['id'], c['ragione_sociale']) for c in clienti]
+        self.fields['cliente'].choices = choices
+        if self.instance and self.instance.pk and self.instance.cliente_id:
+            self.fields['cliente'].initial = str(self.instance.cliente_id)
+
+    def clean_cliente(self):
+        valore = self.cleaned_data['cliente']
+        if not valore:
+            raise forms.ValidationError('Seleziona un cliente.')
+        return valore
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if self._cliente_id:
-            instance.cliente_id = self._cliente_id
+        instance.cliente_id = self.cleaned_data['cliente']
         if commit:
             instance.save()
         return instance
 
 
-class SezioneForm(ClienteScopedForm):
+class SezioneForm(forms.ModelForm):
     class Meta:
         model = Sezione
         fields = ['nome', 'note', 'ordine']
         widgets = {'note': forms.Textarea(attrs={'rows': 3})}
 
 
-class ApparatoForm(ClienteScopedForm):
+class ApparatoForm(forms.ModelForm):
     class Meta:
         model = Apparato
         fields = ['sezione', 'tipo', 'nome', 'marca_modello', 'indirizzo_ip', 'indirizzo_mac', 'note', 'ordine']
         widgets = {'note': forms.Textarea(attrs={'rows': 3})}
 
-    def __init__(self, *args, cliente_id=None, **kwargs):
-        super().__init__(*args, cliente_id=cliente_id, **kwargs)
-        if cliente_id:
-            self.fields['sezione'].queryset = Sezione.objects.filter(cliente_id=cliente_id)
+    def __init__(self, *args, progetto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        progetto = progetto or getattr(self.instance, 'progetto', None)
+        if progetto:
+            self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
 
 
 class ParametroConfigForm(forms.ModelForm):
@@ -66,14 +86,14 @@ class ReteInfoForm(forms.ModelForm):
         widgets = {'descrizione': forms.Textarea(attrs={'rows': 14})}
 
 
-class VlanForm(ClienteScopedForm):
+class VlanForm(forms.ModelForm):
     class Meta:
         model = Vlan
         fields = ['numero', 'nome', 'subnet', 'gateway', 'note', 'ordine']
         widgets = {'note': forms.Textarea(attrs={'rows': 2})}
 
 
-class ReteWirelessForm(ClienteScopedForm):
+class ReteWirelessForm(forms.ModelForm):
     class Meta:
         model = ReteWireless
         fields = ['sezione', 'vlan', 'ssid', 'tipo_sicurezza', 'password', 'banda', 'note', 'ordine']
@@ -82,11 +102,12 @@ class ReteWirelessForm(ClienteScopedForm):
             'note': forms.Textarea(attrs={'rows': 2}),
         }
 
-    def __init__(self, *args, cliente_id=None, **kwargs):
-        super().__init__(*args, cliente_id=cliente_id, **kwargs)
-        if cliente_id:
-            self.fields['sezione'].queryset = Sezione.objects.filter(cliente_id=cliente_id)
-            self.fields['vlan'].queryset = Vlan.objects.filter(cliente_id=cliente_id)
+    def __init__(self, *args, progetto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        progetto = progetto or getattr(self.instance, 'progetto', None)
+        if progetto:
+            self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
+            self.fields['vlan'].queryset = Vlan.objects.filter(progetto=progetto)
 
 
 TipoApparatoFormSet = modelformset_factory(
@@ -95,10 +116,3 @@ TipoApparatoFormSet = modelformset_factory(
     extra=1,
     can_delete=True,
 )
-
-
-def clienti_choices():
-    """Lista (id, ragione_sociale) dei clienti dell'anagrafica condivisa,
-    per popolare picker altrove. Solleva PortalUnavailableError se il
-    Portale non risponde."""
-    return [(c['id'], c['ragione_sociale']) for c in portal_client.list_clienti()]

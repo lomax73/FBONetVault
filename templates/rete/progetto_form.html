@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Progetto — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>{% if object %}Modifica progetto{% else %}Nuovo progetto{% endif %}</h1>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Salva</button>
+        <a class="btn btn-secondary" href="{% url 'progetto-list' %}">Annulla</a>
+    </form>
+</div>
+{% endblock %}

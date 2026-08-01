@@ -1,15 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}{{ cliente.ragione_sociale }} — FBONetVault{% endblock %}
+{% block title %}{{ progetto.nome }} — FBONetVault{% endblock %}
 
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'cliente-list' %}">Clienti</a> / {{ cliente.ragione_sociale }}</div>
-<h1>{{ cliente.ragione_sociale }}</h1>
+<div class="breadcrumb"><a href="{% url 'progetto-list' %}">Progetti</a> / {{ progetto.nome }}</div>
+<div class="section-header">
+    <div>
+        <h1 style="margin-bottom:0.3rem;">{{ progetto.nome }}</h1>
+        <p style="color:#64748b; margin:0;">
+            {{ progetto.cliente.ragione_sociale }}{% if progetto.indirizzo %} — {{ progetto.indirizzo }}{% endif %}
+        </p>
+    </div>
+    <div>
+        <a class="btn btn-small btn-secondary" href="{% url 'progetto-update' progetto.pk %}">Modifica</a>
+        <a class="btn btn-small btn-danger" href="{% url 'progetto-delete' progetto.pk %}">Elimina</a>
+    </div>
+</div>
+
+{% if progetto.descrizione %}
+<div class="card">
+    <p style="white-space:pre-wrap; margin:0;">{{ progetto.descrizione }}</p>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="section-header">
         <h2>Sezioni</h2>
-        <a class="btn btn-small" href="{% url 'sezione-create' cliente_id %}">+ Nuova sezione</a>
+        <a class="btn btn-small" href="{% url 'sezione-create' progetto.pk %}">+ Nuova sezione</a>
     </div>
     {% if sezioni %}
     <table>
@@ -35,7 +52,7 @@
 <div class="card">
     <div class="section-header">
         <h2>Apparati</h2>
-        <a class="btn btn-small" href="{% url 'apparato-create' cliente_id %}">+ Nuovo apparato</a>
+        <a class="btn btn-small" href="{% url 'apparato-create' progetto.pk %}">+ Nuovo apparato</a>
     </div>
     {% if apparati %}
     <table>
@@ -63,7 +80,7 @@
 <div class="card">
     <div class="section-header">
         <h2>Struttura della rete</h2>
-        <a class="btn btn-small" href="{% url 'rete-info-update' cliente_id %}">Modifica descrizione</a>
+        <a class="btn btn-small" href="{% url 'rete-info-update' progetto.pk %}">Modifica descrizione</a>
     </div>
     {% if rete_info.descrizione %}
     <p style="white-space:pre-wrap;">{{ rete_info.descrizione }}</p>
@@ -75,7 +92,7 @@
 <div class="card">
     <div class="section-header">
         <h2>VLAN</h2>
-        <a class="btn btn-small" href="{% url 'vlan-create' cliente_id %}">+ Nuova VLAN</a>
+        <a class="btn btn-small" href="{% url 'vlan-create' progetto.pk %}">+ Nuova VLAN</a>
     </div>
     {% if vlan_list %}
     <table>
@@ -103,7 +120,7 @@
 <div class="card">
     <div class="section-header">
         <h2>Reti wireless</h2>
-        <a class="btn btn-small" href="{% url 'wireless-create' cliente_id %}">+ Nuova rete wireless</a>
+        <a class="btn btn-small" href="{% url 'wireless-create' progetto.pk %}">+ Nuova rete wireless</a>
     </div>
     {% if reti_wireless %}
     <table>

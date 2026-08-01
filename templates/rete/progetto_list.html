@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Progetti — FBONetVault{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+    <h1>Progetti</h1>
+    <a class="btn" href="{% url 'progetto-create' %}">+ Nuovo progetto</a>
+</div>
+
+{% if progetti %}
+<table>
+    <thead>
+        <tr><th>Progetto</th><th>Cliente</th><th>Indirizzo</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for progetto in progetti %}
+        <tr>
+            <td><a href="{% url 'progetto-detail' progetto.pk %}">{{ progetto.nome }}</a></td>
+            <td>{{ progetto.cliente.ragione_sociale }}</td>
+            <td>{{ progetto.indirizzo|default:"—" }}</td>
+            <td style="white-space:nowrap;">
+                <a href="{% url 'progetto-update' progetto.pk %}">Modifica</a> &middot;
+                <a href="{% url 'progetto-delete' progetto.pk %}">Elimina</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Nessun progetto ancora. <a href="{% url 'progetto-create' %}">Creane uno</a>.</p>
+{% endif %}
+{% endblock %}

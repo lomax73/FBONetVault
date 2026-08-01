@@ -3,15 +3,37 @@ from django.db import models
 from .fields import EncryptedCharField
 
 
-class Sezione(models.Model):
-    """Raggruppamento logico/fisico degli apparati di un cliente, es. "Sede
-    Milano", "Sala CED", "Piano 2". cliente_id fa riferimento all'anagrafica
-    condivisa nel Portale FBO (nessuna FK cross-database, risolto a runtime
-    via portal_client.py)."""
+class Progetto(models.Model):
+    """Un progetto di configurazione presso un cliente: raggruppa sezioni,
+    apparati, schema di rete e reti wireless di un sito/intervento
+    specifico. cliente_id fa riferimento all'anagrafica condivisa nel
+    Portale FBO (nessuna FK cross-database, risolto a runtime via
+    portal_client.py)."""
 
+    nome = models.CharField(max_length=255)
     cliente_id = models.UUIDField(
         help_text="Riferimento al cliente nell'anagrafica condivisa del Portale.",
     )
+    indirizzo = models.CharField(
+        'Indirizzo / sede', max_length=255, blank=True,
+        help_text='Dove si trova fisicamente il sito configurato, se diverso dalla sede del cliente in anagrafica.',
+    )
+    descrizione = models.TextField(blank=True)
+    creato_il = models.DateTimeField(auto_now_add=True)
+    aggiornato_il = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-creato_il']
+
+    def __str__(self):
+        return self.nome
+
+
+class Sezione(models.Model):
+    """Raggruppamento logico/fisico degli apparati di un progetto, es. "Sede
+    Milano", "Sala CED", "Piano 2"."""
+
+    progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='sezioni')
     nome = models.CharField(max_length=255)
     note = models.TextField(blank=True)
     ordine = models.PositiveIntegerField(default=0)
@@ -38,9 +60,7 @@ class TipoApparato(models.Model):
 
 
 class Apparato(models.Model):
-    cliente_id = models.UUIDField(
-        help_text="Riferimento al cliente nell'anagrafica condivisa del Portale.",
-    )
+    progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='apparati')
     sezione = models.ForeignKey(
         Sezione, verbose_name='Sezione', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='apparati',
@@ -119,20 +139,20 @@ class Credenziale(models.Model):
 
 
 class ReteInfo(models.Model):
-    """Descrizione libera di come è strutturata la rete di un cliente
-    (topologia, criteri di indirizzamento, note di progetto). Una sola voce
-    per cliente."""
+    """Descrizione libera di come è strutturata la rete di un progetto
+    (topologia, criteri di indirizzamento, note). Una sola voce per
+    progetto."""
 
-    cliente_id = models.UUIDField(unique=True)
+    progetto = models.OneToOneField(Progetto, on_delete=models.CASCADE, related_name='rete_info')
     descrizione = models.TextField(blank=True)
     aggiornato_il = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return str(self.cliente_id)
+        return f'Rete — {self.progetto}'
 
 
 class Vlan(models.Model):
-    cliente_id = models.UUIDField()
+    progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='vlan_set')
     numero = models.PositiveIntegerField('VLAN ID')
     nome = models.CharField(max_length=255, blank=True)
     subnet = models.CharField(max_length=100, blank=True, help_text='Es. "10.0.10.0/24".')
@@ -172,7 +192,7 @@ class ReteWireless(models.Model):
         (SICUREZZA_APERTA, 'Aperta'),
     ]
 
-    cliente_id = models.UUIDField()
+    progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='reti_wireless')
     sezione = models.ForeignKey(
         Sezione, verbose_name='Sezione', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='reti_wireless',

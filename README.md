@@ -2,11 +2,14 @@
 
 App della famiglia FBO per raccogliere in un unico posto tutti i
 parametri di configurazione della rete e dei server dei clienti presso
-cui si interviene: apparati (router, switch, firewall, access point,
-server, ...) organizzati per sezione e tipo, i relativi parametri di
-configurazione e credenziali di accesso, la struttura della rete (VLAN
-e descrizione della topologia) e le reti wireless con le relative
-credenziali.
+cui si interviene. Il lavoro è organizzato per **progetti**: ogni
+progetto ha un nome, un indirizzo/sede, una descrizione ed è collegato a
+un cliente dell'anagrafica condivisa del Portale FBO. All'interno di un
+progetto si gestiscono apparati (router, switch, firewall, access
+point, server, ...) organizzati per sezione e tipo, i relativi
+parametri di configurazione e credenziali di accesso, la struttura
+della rete (VLAN e descrizione della topologia) e le reti wireless con
+le relative credenziali.
 
 ## Sviluppo locale
 
@@ -19,16 +22,18 @@ venv/bin/python manage.py createsuperuser
 venv/bin/python manage.py runserver
 ```
 
-Il picker cliente (elenco in home, dettaglio cliente) dipende
-dall'anagrafica clienti condivisa nel Portale FBO — serve un'istanza del
-Portale raggiungibile (vedi `PORTAL_INTERNAL_BASE_URL` in
-`.env.example`). Senza Portale configurato, l'app parte comunque ma
-l'elenco clienti mostra un errore.
+Il picker cliente nel form progetto dipende dall'anagrafica clienti
+condivisa nel Portale FBO — serve un'istanza del Portale raggiungibile
+(vedi `PORTAL_INTERNAL_BASE_URL` in `.env.example`). Senza Portale
+configurato, l'app parte comunque ma la creazione di un progetto mostra
+un errore nel picker cliente.
 
 ## Flusso
 
-1. Da "Clienti" scegli il cliente (anagrafica condivisa del Portale).
-2. Nella scheda cliente crea le sezioni (sedi/aree, es. "Sala CED").
+1. Da "Progetti" crea un nuovo progetto: nome, indirizzo/sede,
+   descrizione e cliente (dall'anagrafica del Portale).
+2. Nella scheda progetto crea le sezioni (sedi/aree interne, es. "Sala
+   CED").
 3. Aggiungi gli apparati, assegnandoli a una sezione e a un tipo
    (configurabile in "Configurazione").
 4. Nella scheda apparato aggiungi i parametri di configurazione liberi

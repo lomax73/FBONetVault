@@ -4,6 +4,7 @@ from .models import (
     Apparato,
     Credenziale,
     ParametroConfig,
+    Progetto,
     ReteInfo,
     ReteWireless,
     Sezione,
@@ -12,9 +13,15 @@ from .models import (
 )
 
 
+@admin.register(Progetto)
+class ProgettoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'cliente_id', 'indirizzo', 'creato_il')
+    search_fields = ('nome', 'indirizzo')
+
+
 @admin.register(Sezione)
 class SezioneAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'cliente_id', 'ordine')
+    list_display = ('nome', 'progetto', 'ordine')
     search_fields = ('nome',)
 
 
@@ -35,7 +42,7 @@ class CredenzialeInline(admin.TabularInline):
 
 @admin.register(Apparato)
 class ApparatoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'cliente_id', 'sezione', 'tipo', 'indirizzo_ip')
+    list_display = ('nome', 'progetto', 'sezione', 'tipo', 'indirizzo_ip')
     list_filter = ('tipo',)
     search_fields = ('nome', 'indirizzo_ip', 'marca_modello')
     inlines = [ParametroConfigInline, CredenzialeInline]
@@ -43,16 +50,16 @@ class ApparatoAdmin(admin.ModelAdmin):
 
 @admin.register(ReteInfo)
 class ReteInfoAdmin(admin.ModelAdmin):
-    list_display = ('cliente_id', 'aggiornato_il')
+    list_display = ('progetto', 'aggiornato_il')
 
 
 @admin.register(Vlan)
 class VlanAdmin(admin.ModelAdmin):
-    list_display = ('numero', 'nome', 'cliente_id', 'subnet')
+    list_display = ('numero', 'nome', 'progetto', 'subnet')
     search_fields = ('nome', 'subnet')
 
 
 @admin.register(ReteWireless)
 class ReteWirelessAdmin(admin.ModelAdmin):
-    list_display = ('ssid', 'cliente_id', 'tipo_sicurezza', 'banda')
+    list_display = ('ssid', 'progetto', 'tipo_sicurezza', 'banda')
     search_fields = ('ssid',)

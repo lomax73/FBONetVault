@@ -12,13 +12,14 @@ from .forms import (
     ApparatoForm,
     CredenzialeForm,
     ParametroConfigForm,
+    ProgettoForm,
     ReteInfoForm,
     ReteWirelessForm,
     SezioneForm,
     TipoApparatoFormSet,
     VlanForm,
 )
-from .models import Apparato, Credenziale, ParametroConfig, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
+from .models import Apparato, Credenziale, ParametroConfig, Progetto, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
 
 
 @dataclass
@@ -40,77 +41,102 @@ class ClienteInfo:
         return self.ragione_sociale
 
 
-def _get_cliente(cliente_id):
+def _attach_clienti(progetti):
+    """Risolve cliente_id -> dati cliente per una lista di progetti con UNA
+    sola chiamata al Portale (non una per riga). Se il Portale non risponde
+    o il cliente non esiste più, fallback esplicito invece di un errore."""
+    progetti = list(progetti)
     try:
-        dati = portal_client.get_cliente(cliente_id)
+        by_id = {c['id']: c for c in portal_client.list_clienti()}
     except portal_client.PortalUnavailableError:
-        return ClienteInfo(id=str(cliente_id), ragione_sociale='Portale non raggiungibile')
-    if dati is None:
-        return ClienteInfo(id=str(cliente_id), ragione_sociale='Cliente non disponibile')
-    return ClienteInfo(**dati)
+        by_id = {}
+    for progetto in progetti:
+        dati = by_id.get(str(progetto.cliente_id))
+        progetto.cliente = ClienteInfo(**dati) if dati else ClienteInfo(ragione_sociale='Cliente non disponibile')
+    return progetti
 
 
-# --- Clienti --------------------------------------------------------------
+# --- Progetti ---------------------------------------------------------
 
-class ClienteListView(LoginRequiredMixin, ListView):
-    """Elenco clienti dell'anagrafica condivisa del Portale: punto di
-    ingresso per raggiungere la scheda di configurazione di ciascuno."""
+class ProgettoListView(LoginRequiredMixin, ListView):
+    model = Progetto
+    template_name = 'rete/progetto_list.html'
+    context_object_name = 'progetti'
 
-    template_name = 'rete/cliente_list.html'
-
-    def get(self, request, *args, **kwargs):
-        errore = None
-        try:
-            clienti = [ClienteInfo(**c) for c in portal_client.list_clienti()]
-        except portal_client.PortalUnavailableError as exc:
-            clienti = []
-            errore = str(exc)
-        return render(request, self.template_name, {'clienti': clienti, 'errore_portale': errore})
+    def get_queryset(self):
+        return _attach_clienti(super().get_queryset())
 
 
-class ClienteDetailView(LoginRequiredMixin, DetailView):
-    """Scheda cliente: dashboard con sezioni, apparati, VLAN, reti wireless
-    e descrizione della rete."""
+class ProgettoDetailView(LoginRequiredMixin, DetailView):
+    """Scheda progetto: dashboard con sezioni, apparati, VLAN, reti
+    wireless e descrizione della rete."""
 
-    template_name = 'rete/cliente_detail.html'
+    model = Progetto
+    template_name = 'rete/progetto_detail.html'
+    context_object_name = 'progetto'
 
-    def get(self, request, *args, **kwargs):
-        cliente_id = kwargs['cliente_id']
-        cliente = _get_cliente(cliente_id)
-        rete_info, _ = ReteInfo.objects.get_or_create(cliente_id=cliente_id)
-        context = {
-            'cliente': cliente,
-            'cliente_id': cliente_id,
-            'sezioni': Sezione.objects.filter(cliente_id=cliente_id),
-            'apparati': Apparato.objects.filter(cliente_id=cliente_id).select_related('sezione', 'tipo'),
-            'vlan_list': Vlan.objects.filter(cliente_id=cliente_id),
-            'reti_wireless': ReteWireless.objects.filter(cliente_id=cliente_id).select_related('sezione', 'vlan'),
-            'rete_info': rete_info,
-        }
-        return render(request, self.template_name, context)
-
-
-class ClienteScopedCreateMixin:
-    """Aggiunge cliente_id (dall'URL) ai form kwargs e al contesto template,
-    per i CreateView di oggetti che appartengono a un cliente."""
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['cliente_id'] = self.kwargs['cliente_id']
-        return kwargs
+    def get_object(self, queryset=None):
+        progetto = super().get_object(queryset)
+        _attach_clienti([progetto])
+        return progetto
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['cliente_id'] = self.kwargs['cliente_id']
+        rete_info, _ = ReteInfo.objects.get_or_create(progetto=self.object)
+        context['sezioni'] = self.object.sezioni.all()
+        context['apparati'] = self.object.apparati.select_related('sezione', 'tipo')
+        context['vlan_list'] = self.object.vlan_set.all()
+        context['reti_wireless'] = self.object.reti_wireless.select_related('sezione', 'vlan')
+        context['rete_info'] = rete_info
         return context
 
+
+class ProgettoCreateView(LoginRequiredMixin, CreateView):
+    model = Progetto
+    form_class = ProgettoForm
+    template_name = 'rete/progetto_form.html'
+
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.kwargs['cliente_id']])
+        return reverse('progetto-detail', args=[self.object.pk])
+
+
+class ProgettoUpdateView(LoginRequiredMixin, UpdateView):
+    model = Progetto
+    form_class = ProgettoForm
+    template_name = 'rete/progetto_form.html'
+
+    def get_success_url(self):
+        return reverse('progetto-detail', args=[self.object.pk])
+
+
+class ProgettoDeleteView(LoginRequiredMixin, DeleteView):
+    model = Progetto
+    template_name = 'rete/confirm_delete.html'
+    extra_context = {'titolo': 'progetto'}
+    success_url = '/'
 
 
 # --- Sezioni ---------------------------------------------------------------
 
-class SezioneCreateView(LoginRequiredMixin, ClienteScopedCreateMixin, CreateView):
+class ProgettoScopedCreateMixin:
+    """Aggiunge progetto_pk (dall'URL) al contesto template e imposta la FK
+    progetto sull'istanza salvata, per i CreateView di oggetti che
+    appartengono a un progetto."""
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['progetto_pk'] = self.kwargs['progetto_pk']
+        return context
+
+    def form_valid(self, form):
+        form.instance.progetto_id = self.kwargs['progetto_pk']
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('progetto-detail', args=[self.kwargs['progetto_pk']])
+
+
+class SezioneCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
     model = Sezione
     form_class = SezioneForm
     template_name = 'rete/sezione_form.html'
@@ -122,7 +148,7 @@ class SezioneUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'rete/sezione_form.html'
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 class SezioneDeleteView(LoginRequiredMixin, DeleteView):
@@ -131,15 +157,20 @@ class SezioneDeleteView(LoginRequiredMixin, DeleteView):
     extra_context = {'titolo': 'sezione'}
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 # --- Apparati ----------------------------------------------------------
 
-class ApparatoCreateView(LoginRequiredMixin, ClienteScopedCreateMixin, CreateView):
+class ApparatoCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
     model = Apparato
     form_class = ApparatoForm
     template_name = 'rete/apparato_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['progetto'] = Progetto.objects.get(pk=self.kwargs['progetto_pk'])
+        return kwargs
 
     def get_success_url(self):
         return reverse('apparato-detail', args=[self.object.pk])
@@ -148,13 +179,7 @@ class ApparatoCreateView(LoginRequiredMixin, ClienteScopedCreateMixin, CreateVie
 class ApparatoUpdateView(LoginRequiredMixin, UpdateView):
     model = Apparato
     form_class = ApparatoForm
-
     template_name = 'rete/apparato_form.html'
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['cliente_id'] = self.object.cliente_id
-        return kwargs
 
     def get_success_url(self):
         return reverse('apparato-detail', args=[self.object.pk])
@@ -166,7 +191,7 @@ class ApparatoDeleteView(LoginRequiredMixin, DeleteView):
     extra_context = {'titolo': 'apparato'}
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 class ApparatoDetailView(LoginRequiredMixin, DetailView):
@@ -265,14 +290,14 @@ class ReteInfoUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'rete/rete_info_form.html'
 
     def get_object(self, queryset=None):
-        rete_info, _ = ReteInfo.objects.get_or_create(cliente_id=self.kwargs['cliente_id'])
+        rete_info, _ = ReteInfo.objects.get_or_create(progetto_id=self.kwargs['progetto_pk'])
         return rete_info
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.kwargs['cliente_id']])
+        return reverse('progetto-detail', args=[self.kwargs['progetto_pk']])
 
 
-class VlanCreateView(LoginRequiredMixin, ClienteScopedCreateMixin, CreateView):
+class VlanCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
     model = Vlan
     form_class = VlanForm
     template_name = 'rete/vlan_form.html'
@@ -284,7 +309,7 @@ class VlanUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'rete/vlan_form.html'
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 class VlanDeleteView(LoginRequiredMixin, DeleteView):
@@ -293,15 +318,20 @@ class VlanDeleteView(LoginRequiredMixin, DeleteView):
     extra_context = {'titolo': 'VLAN'}
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 # --- Reti wireless -------------------------------------------------------
 
-class ReteWirelessCreateView(LoginRequiredMixin, ClienteScopedCreateMixin, CreateView):
+class ReteWirelessCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
     model = ReteWireless
     form_class = ReteWirelessForm
     template_name = 'rete/wireless_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['progetto'] = Progetto.objects.get(pk=self.kwargs['progetto_pk'])
+        return kwargs
 
 
 class ReteWirelessUpdateView(LoginRequiredMixin, UpdateView):
@@ -309,13 +339,8 @@ class ReteWirelessUpdateView(LoginRequiredMixin, UpdateView):
     form_class = ReteWirelessForm
     template_name = 'rete/wireless_form.html'
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['cliente_id'] = self.object.cliente_id
-        return kwargs
-
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 class ReteWirelessDeleteView(LoginRequiredMixin, DeleteView):
@@ -324,7 +349,7 @@ class ReteWirelessDeleteView(LoginRequiredMixin, DeleteView):
     extra_context = {'titolo': 'rete wireless'}
 
     def get_success_url(self):
-        return reverse('cliente-detail', args=[self.object.cliente_id])
+        return reverse('progetto-detail', args=[self.object.progetto_id])
 
 
 # --- Configurazione (tipi apparato) ---------------------------------------

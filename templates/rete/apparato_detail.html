@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="breadcrumb">
-    <a href="{% url 'cliente-list' %}">Clienti</a> /
-    <a href="{% url 'cliente-detail' apparato.cliente_id %}">Cliente</a> / {{ apparato.nome }}
+    <a href="{% url 'progetto-list' %}">Progetti</a> /
+    <a href="{% url 'progetto-detail' apparato.progetto_id %}">Progetto</a> / {{ apparato.nome }}
 </div>
 <div class="section-header">
     <h1>{{ apparato.nome }}</h1>
