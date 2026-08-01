@@ -69,10 +69,24 @@ class Apparato(models.Model):
         TipoApparato, verbose_name='Tipo apparato', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='apparati',
     )
+    STATO_ATTIVO = 'attivo'
+    STATO_MANUTENZIONE = 'manutenzione'
+    STATO_DISMESSO = 'dismesso'
+    STATO_CHOICES = [
+        (STATO_ATTIVO, 'Attivo'),
+        (STATO_MANUTENZIONE, 'In manutenzione'),
+        (STATO_DISMESSO, 'Dismesso'),
+    ]
+
     nome = models.CharField(max_length=255, help_text='Nome identificativo, es. "Switch core piano 1".')
+    hostname = models.CharField(max_length=255, blank=True)
     marca_modello = models.CharField('Marca / modello', max_length=255, blank=True)
+    numero_seriale = models.CharField('Numero seriale', max_length=255, blank=True)
+    firmware = models.CharField('Versione firmware', max_length=100, blank=True)
     indirizzo_ip = models.CharField('Indirizzo IP', max_length=100, blank=True)
     indirizzo_mac = models.CharField('Indirizzo MAC', max_length=100, blank=True)
+    stato = models.CharField(max_length=20, choices=STATO_CHOICES, default=STATO_ATTIVO)
+    data_installazione = models.DateField('Data installazione', null=True, blank=True)
     note = models.TextField(blank=True)
     ordine = models.PositiveIntegerField(default=0)
     creato_il = models.DateTimeField(auto_now_add=True)

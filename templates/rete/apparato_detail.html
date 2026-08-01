@@ -8,7 +8,16 @@
     <a href="{% url 'progetto-detail' apparato.progetto_id %}">Progetto</a> / {{ apparato.nome }}
 </div>
 <div class="section-header">
-    <h1>{{ apparato.nome }}</h1>
+    <h1>
+        {{ apparato.nome }}
+        {% if apparato.stato == 'attivo' %}
+        <span class="badge" style="background:#22c55e;">Attivo</span>
+        {% elif apparato.stato == 'manutenzione' %}
+        <span class="badge" style="background:#f59e0b;">In manutenzione</span>
+        {% else %}
+        <span class="badge badge-muted">Dismesso</span>
+        {% endif %}
+    </h1>
     <div>
         <a class="btn btn-small btn-secondary" href="{% url 'apparato-update' apparato.pk %}">Modifica</a>
         <a class="btn btn-small btn-danger" href="{% url 'apparato-delete' apparato.pk %}">Elimina</a>
@@ -20,9 +29,13 @@
         <tbody>
             <tr><th style="width:180px;">Tipo</th><td>{{ apparato.tipo|default:"—" }}</td></tr>
             <tr><th>Sezione</th><td>{{ apparato.sezione|default:"—" }}</td></tr>
+            <tr><th>Hostname</th><td class="mono">{{ apparato.hostname|default:"—" }}</td></tr>
             <tr><th>Marca / modello</th><td>{{ apparato.marca_modello|default:"—" }}</td></tr>
+            <tr><th>Numero seriale</th><td class="mono">{{ apparato.numero_seriale|default:"—" }}</td></tr>
+            <tr><th>Versione firmware</th><td class="mono">{{ apparato.firmware|default:"—" }}</td></tr>
             <tr><th>Indirizzo IP</th><td class="mono">{{ apparato.indirizzo_ip|default:"—" }}</td></tr>
             <tr><th>Indirizzo MAC</th><td class="mono">{{ apparato.indirizzo_mac|default:"—" }}</td></tr>
+            <tr><th>Data installazione</th><td>{{ apparato.data_installazione|default:"—" }}</td></tr>
             <tr><th>Note</th><td style="white-space:pre-wrap;">{{ apparato.note|default:"—" }}</td></tr>
         </tbody>
     </table>

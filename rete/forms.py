@@ -52,8 +52,14 @@ class SezioneForm(forms.ModelForm):
 class ApparatoForm(forms.ModelForm):
     class Meta:
         model = Apparato
-        fields = ['sezione', 'tipo', 'nome', 'marca_modello', 'indirizzo_ip', 'indirizzo_mac', 'note', 'ordine']
-        widgets = {'note': forms.Textarea(attrs={'rows': 3})}
+        fields = [
+            'sezione', 'tipo', 'nome', 'hostname', 'marca_modello', 'numero_seriale', 'firmware',
+            'indirizzo_ip', 'indirizzo_mac', 'stato', 'data_installazione', 'note', 'ordine',
+        ]
+        widgets = {
+            'note': forms.Textarea(attrs={'rows': 3}),
+            'data_installazione': forms.DateInput(attrs={'type': 'date'}),
+        }
 
     def __init__(self, *args, progetto=None, **kwargs):
         super().__init__(*args, **kwargs)

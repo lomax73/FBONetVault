@@ -42,9 +42,9 @@ class CredenzialeInline(admin.TabularInline):
 
 @admin.register(Apparato)
 class ApparatoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'progetto', 'sezione', 'tipo', 'indirizzo_ip')
-    list_filter = ('tipo',)
-    search_fields = ('nome', 'indirizzo_ip', 'marca_modello')
+    list_display = ('nome', 'progetto', 'sezione', 'tipo', 'indirizzo_ip', 'stato')
+    list_filter = ('tipo', 'stato')
+    search_fields = ('nome', 'hostname', 'indirizzo_ip', 'marca_modello', 'numero_seriale')
     inlines = [ParametroConfigInline, CredenzialeInline]
 
 

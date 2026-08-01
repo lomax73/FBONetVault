@@ -56,7 +56,7 @@
     </div>
     {% if apparati %}
     <table>
-        <thead><tr><th>Nome</th><th>Tipo</th><th>Sezione</th><th>Indirizzo IP</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Sezione</th><th>Indirizzo IP</th><th>Stato</th><th></th></tr></thead>
         <tbody>
             {% for apparato in apparati %}
             <tr>
@@ -64,6 +64,15 @@
                 <td>{{ apparato.tipo|default:"—" }}</td>
                 <td>{{ apparato.sezione|default:"—" }}</td>
                 <td class="mono">{{ apparato.indirizzo_ip|default:"—" }}</td>
+                <td>
+                    {% if apparato.stato == 'attivo' %}
+                    <span class="badge" style="background:#22c55e;">Attivo</span>
+                    {% elif apparato.stato == 'manutenzione' %}
+                    <span class="badge" style="background:#f59e0b;">Manutenzione</span>
+                    {% else %}
+                    <span class="badge badge-muted">Dismesso</span>
+                    {% endif %}
+                </td>
                 <td style="white-space:nowrap;">
                     <a href="{% url 'apparato-update' apparato.pk %}">Modifica</a> &middot;
                     <a href="{% url 'apparato-delete' apparato.pk %}">Elimina</a>
