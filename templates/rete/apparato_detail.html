@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}{{ apparato.nome }} — FBONetVault{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'cliente-list' %}">Clienti</a> /
+    <a href="{% url 'cliente-detail' apparato.cliente_id %}">Cliente</a> / {{ apparato.nome }}
+</div>
+<div class="section-header">
+    <h1>{{ apparato.nome }}</h1>
+    <div>
+        <a class="btn btn-small btn-secondary" href="{% url 'apparato-update' apparato.pk %}">Modifica</a>
+        <a class="btn btn-small btn-danger" href="{% url 'apparato-delete' apparato.pk %}">Elimina</a>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <tbody>
+            <tr><th style="width:180px;">Tipo</th><td>{{ apparato.tipo|default:"—" }}</td></tr>
+            <tr><th>Sezione</th><td>{{ apparato.sezione|default:"—" }}</td></tr>
+            <tr><th>Marca / modello</th><td>{{ apparato.marca_modello|default:"—" }}</td></tr>
+            <tr><th>Indirizzo IP</th><td class="mono">{{ apparato.indirizzo_ip|default:"—" }}</td></tr>
+            <tr><th>Indirizzo MAC</th><td class="mono">{{ apparato.indirizzo_mac|default:"—" }}</td></tr>
+            <tr><th>Note</th><td style="white-space:pre-wrap;">{{ apparato.note|default:"—" }}</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Parametri di configurazione</h2>
+        <a class="btn btn-small" href="{% url 'parametro-create' apparato.pk %}">+ Nuovo parametro</a>
+    </div>
+    {% if parametri %}
+    <table>
+        <thead><tr><th>Chiave</th><th>Valore</th><th>Note</th><th></th></tr></thead>
+        <tbody>
+            {% for parametro in parametri %}
+            <tr>
+                <td>{{ parametro.chiave }}</td>
+                <td class="mono" style="white-space:pre-wrap;">{{ parametro.valore }}</td>
+                <td>{{ parametro.note|default:"—" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'parametro-update' parametro.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'parametro-delete' parametro.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessun parametro ancora.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Credenziali di accesso</h2>
+        <a class="btn btn-small" href="{% url 'credenziale-create' apparato.pk %}">+ Nuova credenziale</a>
+    </div>
+    {% if credenziali %}
+    <table>
+        <thead><tr><th>Accesso</th><th>URL / porta</th><th>Username</th><th>Password</th><th>Note</th><th></th></tr></thead>
+        <tbody>
+            {% for credenziale in credenziali %}
+            <tr>
+                <td>{{ credenziale.get_tipo_accesso_display }}</td>
+                <td class="mono">{{ credenziale.url_porta|default:"—" }}</td>
+                <td class="mono">{{ credenziale.username|default:"—" }}</td>
+                <td class="mono">{{ credenziale.password|default:"—" }}</td>
+                <td>{{ credenziale.note|default:"—" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'credenziale-update' credenziale.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'credenziale-delete' credenziale.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessuna credenziale ancora.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Elimina {{ titolo }} — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>Elimina {{ titolo }}</h1>
+<div class="card">
+    <p>Eliminare <strong>{{ object }}</strong>? L'operazione è definitiva.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Elimina</button>
+        <a class="btn btn-secondary" href="{{ request.META.HTTP_REFERER|default:'/' }}">Annulla</a>
+    </form>
+</div>
+{% endblock %}

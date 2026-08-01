@@ -1,0 +1,17 @@
+[Unit]
+Description=FBONetVault - Gunicorn
+After=network.target
+
+[Service]
+Type=simple
+User=netvault
+Group=netvault
+WorkingDirectory=/opt/netvault/app
+ExecStart=/opt/netvault/app/venv/bin/gunicorn netvault.wsgi:application \
+    --bind unix:/run/netvault/gunicorn.sock \
+    --workers 2
+RuntimeDirectory=netvault
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

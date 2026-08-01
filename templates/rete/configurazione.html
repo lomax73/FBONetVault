@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Configurazione — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>Configurazione</h1>
+<p style="color:#64748b;">Valori disponibili nel menu a discesa "Tipo apparato" quando si aggiunge un apparato.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <h2 style="margin-top:0;">Tipo apparato</h2>
+        {{ formset.management_form }}
+        <table>
+            <thead>
+                <tr><th>Nome</th><th>Ordine</th><th>Elimina</th></tr>
+            </thead>
+            <tbody>
+                {% for form in formset.forms %}
+                <tr>
+                    <td>{{ form.nome }}{{ form.id }}</td>
+                    <td style="width:100px;">{{ form.ordine }}</td>
+                    <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <button class="btn" type="submit">Salva configurazione</button>
+</form>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Struttura della rete — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>Struttura della rete</h1>
+<p style="color:#64748b;">Descrivi topologia, criteri di indirizzamento e note utili a chi interviene sulla rete di questo cliente.</p>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Salva</button>
+        <a class="btn btn-secondary" href="{% url 'cliente-detail' object.cliente_id %}">Annulla</a>
+    </form>
+</div>
+{% endblock %}

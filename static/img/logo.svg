@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Report Rack">
+  <rect x="8" y="8" width="84" height="84" rx="22" fill="#123247"/>
+  <rect x="24" y="32" width="52" height="14" rx="3" fill="none" stroke="#ffffff" stroke-width="4"/>
+  <rect x="24" y="54" width="52" height="14" rx="3" fill="none" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="32" cy="39" r="2.6" fill="#27a5de"/>
+  <circle cx="42" cy="39" r="2.6" fill="#27a5de"/>
+  <circle cx="52" cy="39" r="2.6" fill="#27a5de"/>
+  <circle cx="62" cy="39" r="2.6" fill="#27a5de"/>
+  <circle cx="32" cy="61" r="2.6" fill="#27a5de"/>
+  <circle cx="42" cy="61" r="2.6" fill="#27a5de"/>
+  <circle cx="52" cy="61" r="2.6" fill="#27a5de"/>
+  <circle cx="62" cy="61" r="2.6" fill="#27a5de"/>
+</svg>

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cliente.ragione_sociale }} — FBONetVault{% endblock %}
+
+{% block content %}
+<div class="breadcrumb"><a href="{% url 'cliente-list' %}">Clienti</a> / {{ cliente.ragione_sociale }}</div>
+<h1>{{ cliente.ragione_sociale }}</h1>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Sezioni</h2>
+        <a class="btn btn-small" href="{% url 'sezione-create' cliente_id %}">+ Nuova sezione</a>
+    </div>
+    {% if sezioni %}
+    <table>
+        <thead><tr><th>Nome</th><th>Note</th><th></th></tr></thead>
+        <tbody>
+            {% for sezione in sezioni %}
+            <tr>
+                <td>{{ sezione.nome }}</td>
+                <td>{{ sezione.note|default:"—"|truncatechars:80 }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'sezione-update' sezione.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'sezione-delete' sezione.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessuna sezione ancora. Le sezioni raggruppano gli apparati per sede o area (es. "Sala CED", "Piano 2").</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Apparati</h2>
+        <a class="btn btn-small" href="{% url 'apparato-create' cliente_id %}">+ Nuovo apparato</a>
+    </div>
+    {% if apparati %}
+    <table>
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Sezione</th><th>Indirizzo IP</th><th></th></tr></thead>
+        <tbody>
+            {% for apparato in apparati %}
+            <tr>
+                <td><a href="{% url 'apparato-detail' apparato.pk %}">{{ apparato.nome }}</a></td>
+                <td>{{ apparato.tipo|default:"—" }}</td>
+                <td>{{ apparato.sezione|default:"—" }}</td>
+                <td class="mono">{{ apparato.indirizzo_ip|default:"—" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'apparato-update' apparato.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'apparato-delete' apparato.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessun apparato ancora.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Struttura della rete</h2>
+        <a class="btn btn-small" href="{% url 'rete-info-update' cliente_id %}">Modifica descrizione</a>
+    </div>
+    {% if rete_info.descrizione %}
+    <p style="white-space:pre-wrap;">{{ rete_info.descrizione }}</p>
+    {% else %}
+    <p style="color:#64748b;">Nessuna descrizione ancora. Usala per documentare topologia, criteri di indirizzamento e note di progetto.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>VLAN</h2>
+        <a class="btn btn-small" href="{% url 'vlan-create' cliente_id %}">+ Nuova VLAN</a>
+    </div>
+    {% if vlan_list %}
+    <table>
+        <thead><tr><th>ID</th><th>Nome</th><th>Subnet</th><th>Gateway</th><th></th></tr></thead>
+        <tbody>
+            {% for vlan in vlan_list %}
+            <tr>
+                <td>{{ vlan.numero }}</td>
+                <td>{{ vlan.nome|default:"—" }}</td>
+                <td class="mono">{{ vlan.subnet|default:"—" }}</td>
+                <td class="mono">{{ vlan.gateway|default:"—" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'vlan-update' vlan.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'vlan-delete' vlan.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessuna VLAN ancora.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Reti wireless</h2>
+        <a class="btn btn-small" href="{% url 'wireless-create' cliente_id %}">+ Nuova rete wireless</a>
+    </div>
+    {% if reti_wireless %}
+    <table>
+        <thead><tr><th>SSID</th><th>Sicurezza</th><th>Banda</th><th>Sezione</th><th></th></tr></thead>
+        <tbody>
+            {% for wifi in reti_wireless %}
+            <tr>
+                <td>{{ wifi.ssid }}</td>
+                <td>{{ wifi.get_tipo_sicurezza_display }}</td>
+                <td>{{ wifi.get_banda_display|default:"—" }}</td>
+                <td>{{ wifi.sezione|default:"—" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'wireless-update' wifi.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'wireless-delete' wifi.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessuna rete wireless ancora.</p>
+    {% endif %}
+</div>
+{% endblock %}
