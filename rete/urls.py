@@ -18,12 +18,7 @@ urlpatterns = [
     path('apparati/<int:pk>/modifica/', views.ApparatoUpdateView.as_view(), name='apparato-update'),
     path('apparati/<int:pk>/elimina/', views.ApparatoDeleteView.as_view(), name='apparato-delete'),
 
-    path(
-        'apparati/<int:apparato_pk>/parametri/nuovo/',
-        views.ParametroConfigCreateView.as_view(), name='parametro-create',
-    ),
     path('parametri/<int:pk>/modifica/', views.ParametroConfigUpdateView.as_view(), name='parametro-update'),
-    path('parametri/<int:pk>/elimina/', views.ParametroConfigDeleteView.as_view(), name='parametro-delete'),
 
     path(
         'apparati/<int:apparato_pk>/credenziali/nuova/',
@@ -31,6 +26,12 @@ urlpatterns = [
     ),
     path('credenziali/<int:pk>/modifica/', views.CredenzialeUpdateView.as_view(), name='credenziale-update'),
     path('credenziali/<int:pk>/elimina/', views.CredenzialeDeleteView.as_view(), name='credenziale-delete'),
+
+    path(
+        'apparati/<int:apparato_pk>/allegati/nuovo/',
+        views.ApparatoAllegatoCreateView.as_view(), name='allegato-create',
+    ),
+    path('allegati/<int:pk>/elimina/', views.ApparatoAllegatoDeleteView.as_view(), name='allegato-delete'),
 
     path('progetti/<int:progetto_pk>/rete/modifica/', views.ReteInfoUpdateView.as_view(), name='rete-info-update'),
 

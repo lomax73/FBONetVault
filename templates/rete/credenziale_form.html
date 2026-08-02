@@ -9,7 +9,11 @@
         {% csrf_token %}
         {{ form.as_p }}
         <button class="btn" type="submit">Salva</button>
-        <a class="btn btn-secondary" href="{% url 'apparato-detail' object.apparato_id|default:apparato_pk %}">Annulla</a>
+        {% if object %}
+        <a class="btn btn-secondary" href="{% url 'apparato-detail' object.apparato_id %}">Annulla</a>
+        {% else %}
+        <a class="btn btn-secondary" href="{% url 'apparato-detail' apparato_pk %}">Annulla</a>
+        {% endif %}
     </form>
 </div>
 {% endblock %}

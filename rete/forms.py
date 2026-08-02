@@ -2,7 +2,19 @@ from django import forms
 from django.forms import modelformset_factory
 
 from . import portal_client
-from .models import Apparato, Credenziale, ParametroConfig, Progetto, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
+from .models import (
+    Apparato,
+    ApparatoAllegato,
+    Credenziale,
+    ParametroConfig,
+    ParametroDisponibile,
+    Progetto,
+    ReteInfo,
+    ReteWireless,
+    Sezione,
+    TipoApparato,
+    Vlan,
+)
 
 
 class ProgettoForm(forms.ModelForm):
@@ -50,6 +62,17 @@ class SezioneForm(forms.ModelForm):
 
 
 class ApparatoForm(forms.ModelForm):
+    parametri = forms.ModelMultipleChoiceField(
+        label='Parametri di configurazione aggiuntivi',
+        queryset=ParametroDisponibile.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text=(
+            'Solo i parametri spuntati appariranno nella scheda di questo apparato. '
+            "Per aggiungerne altri all'elenco, vai in Configurazione."
+        ),
+    )
+
     class Meta:
         model = Apparato
         fields = [
@@ -66,12 +89,30 @@ class ApparatoForm(forms.ModelForm):
         progetto = progetto or getattr(self.instance, 'progetto', None)
         if progetto:
             self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
+        if self.instance.pk:
+            self.fields['parametri'].initial = ParametroDisponibile.objects.filter(
+                usi__apparato=self.instance,
+            )
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit:
+            self._sync_parametri(instance)
+        return instance
+
+    def _sync_parametri(self, instance):
+        selezionati = {d.pk for d in self.cleaned_data.get('parametri', [])}
+        esistenti = {p.definizione_id: p for p in instance.parametri.all()}
+        for definizione_id in selezionati - esistenti.keys():
+            ParametroConfig.objects.create(apparato=instance, definizione_id=definizione_id)
+        for definizione_id in esistenti.keys() - selezionati:
+            esistenti[definizione_id].delete()
 
 
 class ParametroConfigForm(forms.ModelForm):
     class Meta:
         model = ParametroConfig
-        fields = ['chiave', 'valore', 'note', 'ordine']
+        fields = ['valore', 'note']
         widgets = {'valore': forms.Textarea(attrs={'rows': 2})}
 
 
@@ -83,6 +124,12 @@ class CredenzialeForm(forms.ModelForm):
             'password': forms.TextInput(),
             'note': forms.Textarea(attrs={'rows': 2}),
         }
+
+
+class ApparatoAllegatoForm(forms.ModelForm):
+    class Meta:
+        model = ApparatoAllegato
+        fields = ['tipo', 'file', 'descrizione']
 
 
 class ReteInfoForm(forms.ModelForm):
@@ -118,6 +165,13 @@ class ReteWirelessForm(forms.ModelForm):
 
 TipoApparatoFormSet = modelformset_factory(
     TipoApparato,
+    fields=['nome', 'ordine'],
+    extra=1,
+    can_delete=True,
+)
+
+ParametroDisponibileFormSet = modelformset_factory(
+    ParametroDisponibile,
     fields=['nome', 'ordine'],
     extra=1,
     can_delete=True,

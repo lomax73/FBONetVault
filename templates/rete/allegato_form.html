@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Allegato — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>Nuovo allegato</h1>
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Carica</button>
+        <a class="btn btn-secondary" href="{% url 'apparato-detail' apparato_pk %}">Annulla</a>
+    </form>
+</div>
+{% endblock %}

@@ -9,9 +9,11 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 
 from . import portal_client
 from .forms import (
+    ApparatoAllegatoForm,
     ApparatoForm,
     CredenzialeForm,
     ParametroConfigForm,
+    ParametroDisponibileFormSet,
     ProgettoForm,
     ReteInfoForm,
     ReteWirelessForm,
@@ -19,7 +21,19 @@ from .forms import (
     TipoApparatoFormSet,
     VlanForm,
 )
-from .models import Apparato, Credenziale, ParametroConfig, Progetto, ReteInfo, ReteWireless, Sezione, TipoApparato, Vlan
+from .models import (
+    Apparato,
+    ApparatoAllegato,
+    Credenziale,
+    ParametroConfig,
+    ParametroDisponibile,
+    Progetto,
+    ReteInfo,
+    ReteWireless,
+    Sezione,
+    TipoApparato,
+    Vlan,
+)
 
 
 @dataclass
@@ -201,30 +215,18 @@ class ApparatoDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['parametri'] = self.object.parametri.all()
+        context['parametri'] = self.object.parametri.select_related('definizione')
         context['credenziali'] = self.object.credenziali.all()
+        context['allegati'] = self.object.allegati.all()
+        context['allegato_form'] = ApparatoAllegatoForm()
         return context
 
 
 # --- Parametri configurazione -----------------------------------------
-
-class ParametroConfigCreateView(LoginRequiredMixin, CreateView):
-    model = ParametroConfig
-    form_class = ParametroConfigForm
-    template_name = 'rete/parametro_form.html'
-
-    def form_valid(self, form):
-        form.instance.apparato_id = self.kwargs['apparato_pk']
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['apparato_pk'] = self.kwargs['apparato_pk']
-        return context
-
-    def get_success_url(self):
-        return reverse('apparato-detail', args=[self.kwargs['apparato_pk']])
-
+# Quali parametri esistono per un apparato si sceglie nel form apparato
+# (spuntandoli dal catalogo ParametroDisponibile, gestito in
+# Configurazione): qui si modifica solo il valore di un parametro già
+# selezionato.
 
 class ParametroConfigUpdateView(LoginRequiredMixin, UpdateView):
     model = ParametroConfig
@@ -277,6 +279,35 @@ class CredenzialeDeleteView(LoginRequiredMixin, DeleteView):
     model = Credenziale
     template_name = 'rete/confirm_delete.html'
     extra_context = {'titolo': 'credenziale'}
+
+    def get_success_url(self):
+        return reverse('apparato-detail', args=[self.object.apparato_id])
+
+
+# --- Allegati (backup / note di configurazione) ---------------------------
+
+class ApparatoAllegatoCreateView(LoginRequiredMixin, CreateView):
+    model = ApparatoAllegato
+    form_class = ApparatoAllegatoForm
+    template_name = 'rete/allegato_form.html'
+
+    def form_valid(self, form):
+        form.instance.apparato_id = self.kwargs['apparato_pk']
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['apparato_pk'] = self.kwargs['apparato_pk']
+        return context
+
+    def get_success_url(self):
+        return reverse('apparato-detail', args=[self.kwargs['apparato_pk']])
+
+
+class ApparatoAllegatoDeleteView(LoginRequiredMixin, DeleteView):
+    model = ApparatoAllegato
+    template_name = 'rete/confirm_delete.html'
+    extra_context = {'titolo': 'allegato'}
 
     def get_success_url(self):
         return reverse('apparato-detail', args=[self.object.apparato_id])
@@ -357,11 +388,21 @@ class ReteWirelessDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def configurazione(request):
     if request.method == 'POST':
-        formset = TipoApparatoFormSet(request.POST, prefix='tipoapparato', queryset=TipoApparato.objects.all())
-        if formset.is_valid():
-            formset.save()
+        tipo_formset = TipoApparatoFormSet(request.POST, prefix='tipoapparato', queryset=TipoApparato.objects.all())
+        parametro_formset = ParametroDisponibileFormSet(
+            request.POST, prefix='parametrodisponibile', queryset=ParametroDisponibile.objects.all(),
+        )
+        if tipo_formset.is_valid() and parametro_formset.is_valid():
+            tipo_formset.save()
+            parametro_formset.save()
             messages.success(request, 'Configurazione aggiornata.')
             return redirect('configurazione')
     else:
-        formset = TipoApparatoFormSet(prefix='tipoapparato', queryset=TipoApparato.objects.all())
-    return render(request, 'rete/configurazione.html', {'formset': formset})
+        tipo_formset = TipoApparatoFormSet(prefix='tipoapparato', queryset=TipoApparato.objects.all())
+        parametro_formset = ParametroDisponibileFormSet(
+            prefix='parametrodisponibile', queryset=ParametroDisponibile.objects.all(),
+        )
+    return render(request, 'rete/configurazione.html', {
+        'tipo_formset': tipo_formset,
+        'parametro_formset': parametro_formset,
+    })

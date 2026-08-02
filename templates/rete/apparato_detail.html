@@ -44,27 +44,29 @@
 <div class="card">
     <div class="section-header">
         <h2>Parametri di configurazione</h2>
-        <a class="btn btn-small" href="{% url 'parametro-create' apparato.pk %}">+ Nuovo parametro</a>
+        <a class="btn btn-small btn-secondary" href="{% url 'apparato-update' apparato.pk %}">Gestisci parametri</a>
     </div>
     {% if parametri %}
     <table>
-        <thead><tr><th>Chiave</th><th>Valore</th><th>Note</th><th></th></tr></thead>
+        <thead><tr><th>Parametro</th><th>Valore</th><th>Note</th><th></th></tr></thead>
         <tbody>
             {% for parametro in parametri %}
             <tr>
-                <td>{{ parametro.chiave }}</td>
-                <td class="mono" style="white-space:pre-wrap;">{{ parametro.valore }}</td>
+                <td>{{ parametro.definizione.nome }}</td>
+                <td class="mono" style="white-space:pre-wrap;">{{ parametro.valore|default:"—" }}</td>
                 <td>{{ parametro.note|default:"—" }}</td>
                 <td style="white-space:nowrap;">
-                    <a href="{% url 'parametro-update' parametro.pk %}">Modifica</a> &middot;
-                    <a href="{% url 'parametro-delete' parametro.pk %}">Elimina</a>
+                    <a href="{% url 'parametro-update' parametro.pk %}">Modifica</a>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p style="color:#64748b;">Nessun parametro ancora.</p>
+    <p style="color:#64748b;">
+        Nessun parametro selezionato per questo apparato. Usa "Gestisci parametri" per spuntare quelli
+        rilevanti (l'elenco disponibile si amplia in Configurazione).
+    </p>
     {% endif %}
 </div>
 
@@ -95,5 +97,37 @@
     {% else %}
     <p style="color:#64748b;">Nessuna credenziale ancora.</p>
     {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h2>Allegati</h2>
+    </div>
+    <p style="color:#64748b;">Backup della configurazione, note o altri file relativi a questo apparato.</p>
+    {% if allegati %}
+    <table>
+        <thead><tr><th>Tipo</th><th>File</th><th>Descrizione</th><th>Caricato il</th><th></th></tr></thead>
+        <tbody>
+            {% for allegato in allegati %}
+            <tr>
+                <td>{{ allegato.get_tipo_display }}</td>
+                <td><a href="{{ allegato.file.url }}" target="_blank" rel="noopener">{{ allegato.file.name|slice:"-40:" }}</a></td>
+                <td>{{ allegato.descrizione|default:"—" }}</td>
+                <td>{{ allegato.caricato_il|date:"d/m/Y H:i" }}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'allegato-delete' allegato.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessun allegato ancora.</p>
+    {% endif %}
+    <form method="post" action="{% url 'allegato-create' apparato.pk %}" enctype="multipart/form-data" style="margin-top:1rem;">
+        {% csrf_token %}
+        {{ allegato_form.as_p }}
+        <button class="btn btn-small" type="submit">Carica allegato</button>
+    </form>
 </div>
 {% endblock %}

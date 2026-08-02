@@ -3,13 +3,13 @@
 {% block title %}Parametro — FBONetVault{% endblock %}
 
 {% block content %}
-<h1>{% if object %}Modifica parametro{% else %}Nuovo parametro{% endif %}</h1>
+<h1>Modifica {{ object.definizione.nome }}</h1>
 <div class="card">
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
         <button class="btn" type="submit">Salva</button>
-        <a class="btn btn-secondary" href="{% url 'apparato-detail' object.apparato_id|default:apparato_pk %}">Annulla</a>
+        <a class="btn btn-secondary" href="{% url 'apparato-detail' object.apparato_id %}">Annulla</a>
     </form>
 </div>
 {% endblock %}

@@ -99,22 +99,41 @@ class Apparato(models.Model):
         return self.nome
 
 
-class ParametroConfig(models.Model):
-    """Parametro di configurazione libero (chiave/valore) di un apparato:
-    copre tutti i parametri specifici del dispositivo senza dover
-    modellare uno schema diverso per ogni tipo di apparato."""
+class ParametroDisponibile(models.Model):
+    """Catalogo dei parametri di configurazione aggiuntivi selezionabili per
+    un apparato (es. "IP WAN", "Porta WAN", "N. porte switch integrato"),
+    gestito in Configurazione. Solo i parametri spuntati nella scheda di un
+    apparato vi appaiono: i campi base (hostname, IP, MAC, seriale, ...)
+    restano invece sempre presenti come campi fissi di Apparato."""
 
-    apparato = models.ForeignKey(Apparato, on_delete=models.CASCADE, related_name='parametri')
-    chiave = models.CharField(max_length=255)
-    valore = models.TextField(blank=True)
-    note = models.CharField(max_length=255, blank=True)
+    nome = models.CharField(max_length=255, unique=True)
     ordine = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ['ordine', 'chiave']
+        ordering = ['ordine', 'nome']
+        verbose_name = 'parametro disponibile'
+        verbose_name_plural = 'parametri disponibili'
 
     def __str__(self):
-        return self.chiave
+        return self.nome
+
+
+class ParametroConfig(models.Model):
+    """Valore di un parametro di configurazione aggiuntivo per un apparato
+    specifico. Quali parametri sono presenti si sceglie nel form
+    dell'apparato, spuntandoli dal catalogo ParametroDisponibile."""
+
+    apparato = models.ForeignKey(Apparato, on_delete=models.CASCADE, related_name='parametri')
+    definizione = models.ForeignKey(ParametroDisponibile, on_delete=models.CASCADE, related_name='usi')
+    valore = models.TextField(blank=True)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['definizione__ordine', 'definizione__nome']
+        unique_together = ['apparato', 'definizione']
+
+    def __str__(self):
+        return self.definizione.nome
 
 
 class Credenziale(models.Model):
@@ -123,6 +142,7 @@ class Credenziale(models.Model):
     ACCESSO_HTTP = 'http'
     ACCESSO_TELNET = 'telnet'
     ACCESSO_CONSOLE = 'console'
+    ACCESSO_CLOUD = 'cloud'
     ACCESSO_ALTRO = 'altro'
     ACCESSO_CHOICES = [
         (ACCESSO_SSH, 'SSH'),
@@ -130,6 +150,7 @@ class Credenziale(models.Model):
         (ACCESSO_HTTP, 'HTTP'),
         (ACCESSO_TELNET, 'Telnet'),
         (ACCESSO_CONSOLE, 'Console'),
+        (ACCESSO_CLOUD, 'Cloud'),
         (ACCESSO_ALTRO, 'Altro'),
     ]
 
@@ -150,6 +171,32 @@ class Credenziale(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_accesso_display()} — {self.username or "?"}'
+
+
+class ApparatoAllegato(models.Model):
+    """File allegati a un apparato: backup della configurazione o note di
+    configurazione libere (es. export, screenshot, PDF)."""
+
+    TIPO_BACKUP = 'backup'
+    TIPO_NOTE = 'note'
+    TIPO_ALTRO = 'altro'
+    TIPO_CHOICES = [
+        (TIPO_BACKUP, 'Backup configurazione'),
+        (TIPO_NOTE, 'Note di configurazione'),
+        (TIPO_ALTRO, 'Altro'),
+    ]
+
+    apparato = models.ForeignKey(Apparato, on_delete=models.CASCADE, related_name='allegati')
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default=TIPO_BACKUP)
+    file = models.FileField(upload_to='apparato_allegati/%Y/%m/')
+    descrizione = models.CharField(max_length=255, blank=True)
+    caricato_il = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-caricato_il']
+
+    def __str__(self):
+        return self.descrizione or self.file.name.rsplit('/', 1)[-1]
 
 
 class ReteInfo(models.Model):

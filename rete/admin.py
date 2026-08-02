@@ -2,8 +2,10 @@ from django.contrib import admin
 
 from .models import (
     Apparato,
+    ApparatoAllegato,
     Credenziale,
     ParametroConfig,
+    ParametroDisponibile,
     Progetto,
     ReteInfo,
     ReteWireless,
@@ -30,6 +32,11 @@ class TipoApparatoAdmin(admin.ModelAdmin):
     list_display = ('nome', 'ordine')
 
 
+@admin.register(ParametroDisponibile)
+class ParametroDisponibileAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'ordine')
+
+
 class ParametroConfigInline(admin.TabularInline):
     model = ParametroConfig
     extra = 0
@@ -40,12 +47,17 @@ class CredenzialeInline(admin.TabularInline):
     extra = 0
 
 
+class ApparatoAllegatoInline(admin.TabularInline):
+    model = ApparatoAllegato
+    extra = 0
+
+
 @admin.register(Apparato)
 class ApparatoAdmin(admin.ModelAdmin):
     list_display = ('nome', 'progetto', 'sezione', 'tipo', 'indirizzo_ip', 'stato')
     list_filter = ('tipo', 'stato')
     search_fields = ('nome', 'hostname', 'indirizzo_ip', 'marca_modello', 'numero_seriale')
-    inlines = [ParametroConfigInline, CredenzialeInline]
+    inlines = [ParametroConfigInline, CredenzialeInline, ApparatoAllegatoInline]
 
 
 @admin.register(ReteInfo)

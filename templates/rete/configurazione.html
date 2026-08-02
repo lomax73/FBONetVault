@@ -4,19 +4,19 @@
 
 {% block content %}
 <h1>Configurazione</h1>
-<p style="color:#64748b;">Valori disponibili nel menu a discesa "Tipo apparato" quando si aggiunge un apparato.</p>
 
 <form method="post">
     {% csrf_token %}
     <div class="card">
         <h2 style="margin-top:0;">Tipo apparato</h2>
-        {{ formset.management_form }}
+        <p style="color:#64748b;">Valori disponibili nel menu a discesa "Tipo apparato" quando si aggiunge un apparato.</p>
+        {{ tipo_formset.management_form }}
         <table>
             <thead>
                 <tr><th>Nome</th><th>Ordine</th><th>Elimina</th></tr>
             </thead>
             <tbody>
-                {% for form in formset.forms %}
+                {% for form in tipo_formset.forms %}
                 <tr>
                     <td>{{ form.nome }}{{ form.id }}</td>
                     <td style="width:100px;">{{ form.ordine }}</td>
@@ -26,6 +26,30 @@
             </tbody>
         </table>
     </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Parametri di configurazione aggiuntivi</h2>
+        <p style="color:#64748b;">
+            Elenco dei parametri selezionabili nella scheda di un apparato (es. "IP WAN", "Porta WAN",
+            "N. porte switch integrato"). Solo quelli spuntati per un apparato appaiono nella sua scheda.
+        </p>
+        {{ parametro_formset.management_form }}
+        <table>
+            <thead>
+                <tr><th>Nome</th><th>Ordine</th><th>Elimina</th></tr>
+            </thead>
+            <tbody>
+                {% for form in parametro_formset.forms %}
+                <tr>
+                    <td>{{ form.nome }}{{ form.id }}</td>
+                    <td style="width:100px;">{{ form.ordine }}</td>
+                    <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
     <button class="btn" type="submit">Salva configurazione</button>
 </form>
 {% endblock %}
