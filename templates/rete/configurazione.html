@@ -10,20 +10,32 @@
     <div class="card">
         <h2 style="margin-top:0;">Tipo apparato</h2>
         <p style="color:#64748b;">
-            Ogni tipo ha di default solo il nome. Spunta i parametri di configurazione aggiuntivi che un
-            apparato di questo tipo dovrà avere nella sua scheda (l'elenco si gestisce nella sezione sotto).
+            Valori disponibili nel menu a discesa "Tipo apparato" quando si aggiunge un apparato. Ogni tipo ha
+            di default solo il nome: usa "Modifica parametri" per scegliere quali parametri di configurazione
+            aggiuntivi avranno gli apparati di quel tipo.
         </p>
         {{ tipo_formset.management_form }}
         <table>
             <thead>
-                <tr><th>Nome</th><th>Parametri di configurazione</th><th>Ordine</th><th>Elimina</th></tr>
+                <tr><th>Nome</th><th>Parametri assegnati</th><th>Ordine</th><th></th><th>Elimina</th></tr>
             </thead>
             <tbody>
                 {% for form in tipo_formset.forms %}
                 <tr>
                     <td style="width:200px;">{{ form.nome }}{{ form.id }}</td>
-                    <td>{{ form.parametri }}</td>
+                    <td style="color:#64748b; font-size:0.9rem;">
+                        {% if form.instance.pk %}
+                            {% with parametri=form.instance.parametri.all %}
+                                {% if parametri %}{{ parametri|join:", " }}{% else %}—{% endif %}
+                            {% endwith %}
+                        {% endif %}
+                    </td>
                     <td style="width:100px;">{{ form.ordine }}</td>
+                    <td style="width:150px;">
+                        {% if form.instance.pk %}
+                        <a href="{% url 'tipo-apparato-parametri' form.instance.pk %}">Modifica parametri</a>
+                        {% endif %}
+                    </td>
                     <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
                 </tr>
                 {% endfor %}

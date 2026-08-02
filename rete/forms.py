@@ -140,12 +140,19 @@ class ReteWirelessForm(forms.ModelForm):
             self.fields['vlan'].queryset = Vlan.objects.filter(progetto=progetto)
 
 
+class TipoApparatoParametriForm(forms.ModelForm):
+    class Meta:
+        model = TipoApparato
+        fields = ['parametri']
+        widgets = {'parametri': forms.CheckboxSelectMultiple}
+        labels = {'parametri': ''}
+
+
 TipoApparatoFormSet = modelformset_factory(
     TipoApparato,
-    fields=['nome', 'parametri', 'ordine'],
+    fields=['nome', 'ordine'],
     extra=1,
     can_delete=True,
-    widgets={'parametri': forms.CheckboxSelectMultiple},
 )
 
 ParametroDisponibileFormSet = modelformset_factory(

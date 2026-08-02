@@ -20,6 +20,7 @@ from .forms import (
     ReteWirelessForm,
     SezioneForm,
     TipoApparatoFormSet,
+    TipoApparatoParametriForm,
     VlanForm,
 )
 from .models import (
@@ -407,8 +408,6 @@ def configurazione(request):
                 del parametro_formset._deleted_form_indexes
             tipo_formset.save()
             parametro_formset.save()
-            for apparato in Apparato.objects.select_related('tipo'):
-                apparato.sync_parametri()
             if protetti:
                 messages.error(
                     request,
@@ -426,3 +425,24 @@ def configurazione(request):
         'tipo_formset': tipo_formset,
         'parametro_formset': parametro_formset,
     })
+
+
+class TipoApparatoParametriUpdateView(LoginRequiredMixin, UpdateView):
+    """Pagina dedicata a scegliere quali parametri di configurazione ha un
+    tipo di apparato: separata dall'elenco dei tipi perché con molti
+    parametri disponibili una selezione a spunta in riga diventa
+    illeggibile."""
+
+    model = TipoApparato
+    form_class = TipoApparatoParametriForm
+    template_name = 'rete/tipo_apparato_parametri.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        for apparato in self.object.apparati.all():
+            apparato.sync_parametri()
+        messages.success(self.request, f'Parametri di "{self.object}" aggiornati.')
+        return response
+
+    def get_success_url(self):
+        return reverse('configurazione')

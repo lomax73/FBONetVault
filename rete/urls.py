@@ -47,4 +47,8 @@ urlpatterns = [
     path('wireless/<int:pk>/elimina/', views.ReteWirelessDeleteView.as_view(), name='wireless-delete'),
 
     path('configurazione/', views.configurazione, name='configurazione'),
+    path(
+        'configurazione/tipi-apparato/<int:pk>/parametri/',
+        views.TipoApparatoParametriUpdateView.as_view(), name='tipo-apparato-parametri',
+    ),
 ]
