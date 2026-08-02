@@ -9,16 +9,20 @@
     {% csrf_token %}
     <div class="card">
         <h2 style="margin-top:0;">Tipo apparato</h2>
-        <p style="color:#64748b;">Valori disponibili nel menu a discesa "Tipo apparato" quando si aggiunge un apparato.</p>
+        <p style="color:#64748b;">
+            Ogni tipo ha di default solo il nome. Spunta i parametri di configurazione aggiuntivi che un
+            apparato di questo tipo dovrà avere nella sua scheda (l'elenco si gestisce nella sezione sotto).
+        </p>
         {{ tipo_formset.management_form }}
         <table>
             <thead>
-                <tr><th>Nome</th><th>Ordine</th><th>Elimina</th></tr>
+                <tr><th>Nome</th><th>Parametri di configurazione</th><th>Ordine</th><th>Elimina</th></tr>
             </thead>
             <tbody>
                 {% for form in tipo_formset.forms %}
                 <tr>
-                    <td>{{ form.nome }}{{ form.id }}</td>
+                    <td style="width:200px;">{{ form.nome }}{{ form.id }}</td>
+                    <td>{{ form.parametri }}</td>
                     <td style="width:100px;">{{ form.ordine }}</td>
                     <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
                 </tr>
@@ -28,10 +32,11 @@
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0;">Parametri di configurazione aggiuntivi</h2>
+        <h2 style="margin-top:0;">Parametri di configurazione disponibili</h2>
         <p style="color:#64748b;">
-            Elenco dei parametri selezionabili nella scheda di un apparato (es. "IP WAN", "Porta WAN",
-            "N. porte switch integrato"). Solo quelli spuntati per un apparato appaiono nella sua scheda.
+            Catalogo dei parametri assegnabili a un tipo di apparato sopra (es. "IP WAN", "Porta WAN",
+            "N. porte switch integrato"). Un parametro usato in almeno una tipologia non può essere eliminato:
+            rimuovilo prima dalla tipologia.
         </p>
         {{ parametro_formset.management_form }}
         <table>

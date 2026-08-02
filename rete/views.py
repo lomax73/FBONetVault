@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.forms.formsets import DELETION_FIELD_NAME
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -393,8 +394,27 @@ def configurazione(request):
             request.POST, prefix='parametrodisponibile', queryset=ParametroDisponibile.objects.all(),
         )
         if tipo_formset.is_valid() and parametro_formset.is_valid():
+            protetti = []
+            for form in parametro_formset.deleted_forms:
+                definizione = form.instance
+                if definizione.pk and definizione.tipi_apparato.exists():
+                    protetti.append(definizione.nome)
+                    form.cleaned_data[DELETION_FIELD_NAME] = False
+            if protetti:
+                # deleted_forms è una cached_property: senza invalidarla,
+                # save() userebbe comunque la lista calcolata sopra, prima
+                # della correzione di cleaned_data appena fatta.
+                del parametro_formset._deleted_form_indexes
             tipo_formset.save()
             parametro_formset.save()
+            for apparato in Apparato.objects.select_related('tipo'):
+                apparato.sync_parametri()
+            if protetti:
+                messages.error(
+                    request,
+                    'Non eliminabili perché usati in almeno una tipologia di apparato: '
+                    + ', '.join(protetti) + '. Rimuovili prima dalla tipologia.',
+                )
             messages.success(request, 'Configurazione aggiornata.')
             return redirect('configurazione')
     else:

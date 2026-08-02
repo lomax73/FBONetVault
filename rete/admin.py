@@ -30,6 +30,7 @@ class SezioneAdmin(admin.ModelAdmin):
 @admin.register(TipoApparato)
 class TipoApparatoAdmin(admin.ModelAdmin):
     list_display = ('nome', 'ordine')
+    filter_horizontal = ('parametri',)
 
 
 @admin.register(ParametroDisponibile)

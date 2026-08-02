@@ -34,14 +34,15 @@ un errore nel picker cliente.
    descrizione e cliente (dall'anagrafica del Portale).
 2. Nella scheda progetto crea le sezioni (sedi/aree interne, es. "Sala
    CED").
-3. Aggiungi gli apparati, assegnandoli a una sezione e a un tipo
-   (configurabile in "Configurazione").
-4. Nella scheda apparato spunta i parametri di configurazione aggiuntivi
-   rilevanti per quel dispositivo (es. "IP WAN", "N. porte switch
-   integrato" — l'elenco disponibile si amplia in "Configurazione") e
-   compilane il valore; aggiungi le credenziali di accesso (SSH, HTTPS,
-   Cloud, ...) e carica eventuali allegati (backup della configurazione,
-   note).
+3. Aggiungi gli apparati, assegnandoli a una sezione e a un tipo. Ogni
+   tipo (Router, Switch, Server, ...) ha di default solo il nome: i
+   parametri di configurazione aggiuntivi che un apparato di quel tipo
+   deve avere (es. Router → IP WAN, gateway, DNS; Switch → N. porte,
+   VLAN native) si scelgono in "Configurazione", una volta per tipo — un
+   apparato li eredita automaticamente in base al tipo scelto.
+4. Nella scheda apparato compila il valore dei parametri ereditati dal
+   tipo; aggiungi le credenziali di accesso (SSH, HTTPS, Cloud, ...) e
+   carica eventuali allegati (backup della configurazione, note).
 5. In "Struttura della rete" documenta topologia e criteri di
    indirizzamento; in "VLAN" registra i segmenti di rete.
 6. In "Reti wireless" registra SSID, sicurezza e password delle reti

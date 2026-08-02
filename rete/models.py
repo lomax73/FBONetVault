@@ -47,9 +47,17 @@ class Sezione(models.Model):
 
 class TipoApparato(models.Model):
     """Voce configurabile per il menu a discesa 'Tipo apparato' (pagina di
-    configurazione), es. Router, Switch, Firewall, Access Point, Server."""
+    configurazione), es. Router, Switch, Firewall, Access Point, Server.
+    Ogni tipo ha di default solo il nome: gli altri parametri di
+    configurazione che un apparato di questo tipo dovrà avere si scelgono
+    qui, dal catalogo ParametroDisponibile."""
 
     nome = models.CharField(max_length=100, unique=True)
+    parametri = models.ManyToManyField(
+        'ParametroDisponibile', blank=True, related_name='tipi_apparato',
+        verbose_name='Parametri di configurazione',
+        help_text='Un apparato di questo tipo avrà questi parametri (oltre ai campi base) nella sua scheda.',
+    )
     ordine = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -98,12 +106,25 @@ class Apparato(models.Model):
     def __str__(self):
         return self.nome
 
+    def sync_parametri(self):
+        """Allinea i ParametroConfig di questo apparato ai parametri
+        previsti dal suo tipo (crea quelli mancanti, rimuove quelli non
+        più previsti). Va richiamato ogni volta che l'apparato viene
+        salvato o quando cambia l'elenco parametri del tipo."""
+        attese = set(self.tipo.parametri.all()) if self.tipo_id else set()
+        esistenti = {p.definizione: p for p in self.parametri.select_related('definizione')}
+        for definizione in attese - esistenti.keys():
+            self.parametri.create(definizione=definizione)
+        for definizione in esistenti.keys() - attese:
+            esistenti[definizione].delete()
+
 
 class ParametroDisponibile(models.Model):
-    """Catalogo dei parametri di configurazione aggiuntivi selezionabili per
-    un apparato (es. "IP WAN", "Porta WAN", "N. porte switch integrato"),
-    gestito in Configurazione. Solo i parametri spuntati nella scheda di un
-    apparato vi appaiono: i campi base (hostname, IP, MAC, seriale, ...)
+    """Catalogo dei parametri di configurazione aggiuntivi assegnabili a un
+    tipo di apparato (es. "IP WAN", "Porta WAN", "N. porte switch
+    integrato"), gestito in Configurazione. Un apparato eredita
+    automaticamente i parametri del suo tipo: i campi base (hostname, IP,
+    MAC, seriale, ...)
     restano invece sempre presenti come campi fissi di Apparato."""
 
     nome = models.CharField(max_length=255, unique=True)
