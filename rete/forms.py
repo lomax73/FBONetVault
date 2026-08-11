@@ -1,5 +1,5 @@
 from django import forms
-from django.forms import modelformset_factory
+from django.forms import formset_factory, modelformset_factory
 
 from . import portal_client
 from .models import (
@@ -57,7 +57,7 @@ class ProgettoForm(forms.ModelForm):
 class SezioneForm(forms.ModelForm):
     class Meta:
         model = Sezione
-        fields = ['nome', 'note', 'ordine']
+        fields = ['nome', 'rack', 'note', 'ordine']
         widgets = {'note': forms.Textarea(attrs={'rows': 3})}
 
 
@@ -138,6 +138,27 @@ class ReteWirelessForm(forms.ModelForm):
         if progetto:
             self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
             self.fields['vlan'].queryset = Vlan.objects.filter(progetto=progetto)
+
+
+class ImportRigaForm(forms.Form):
+    """Una riga della pagina di revisione import apparati (vedi
+    views.apparato_import): un host trovato nello scan nmap, da confermare
+    ed eventualmente assegnare a sezione/tipo prima di creare l'Apparato."""
+
+    includi = forms.BooleanField(required=False, initial=True, label='Importa')
+    nome = forms.CharField(max_length=255, required=False, label='Nome')
+    indirizzo_ip = forms.CharField(max_length=100, required=False, widget=forms.HiddenInput)
+    indirizzo_mac = forms.CharField(max_length=100, required=False, widget=forms.HiddenInput)
+    sezione = forms.ModelChoiceField(queryset=Sezione.objects.none(), required=False, label='Sezione')
+    tipo = forms.ModelChoiceField(queryset=TipoApparato.objects.all(), required=False, label='Tipo')
+
+    def __init__(self, *args, progetto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if progetto:
+            self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
+
+
+ImportRigaFormSet = formset_factory(ImportRigaForm, extra=0)
 
 
 class TipoApparatoParametriForm(forms.ModelForm):

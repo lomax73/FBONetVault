@@ -30,11 +30,12 @@
     </div>
     {% if sezioni %}
     <table>
-        <thead><tr><th>Nome</th><th>Note</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Rack</th><th>Note</th><th></th></tr></thead>
         <tbody>
             {% for sezione in sezioni %}
             <tr>
                 <td>{{ sezione.nome }}</td>
+                <td>{{ sezione.rack|default:"—" }}</td>
                 <td>{{ sezione.note|default:"—"|truncatechars:80 }}</td>
                 <td style="white-space:nowrap;">
                     <a href="{% url 'sezione-update' sezione.pk %}">Modifica</a> &middot;
@@ -52,7 +53,10 @@
 <div class="card">
     <div class="section-header">
         <h2>Apparati</h2>
-        <a class="btn btn-small" href="{% url 'apparato-create' progetto.pk %}">+ Nuovo apparato</a>
+        <div>
+            <a class="btn btn-small btn-secondary" href="{% url 'apparato-import' progetto.pk %}">Importa da scan</a>
+            <a class="btn btn-small" href="{% url 'apparato-create' progetto.pk %}">+ Nuovo apparato</a>
+        </div>
     </div>
     {% if apparati %}
     <table>

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Importa apparati — FBONetVault{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'progetto-list' %}">Progetti</a> /
+    <a href="{% url 'progetto-detail' progetto.pk %}">{{ progetto.nome }}</a> / Importa apparati
+</div>
+<h1>Importa apparati da scan di rete</h1>
+
+<div class="card">
+    <h2>1. Esegui la scansione</h2>
+    <p style="color:#64748b;">
+        NetVault gira su un server remoto e non raggiunge la rete del cliente: esegui il comando da un
+        computer collegato a quella rete (richiede <code>nmap</code> installato), poi carica qui il file
+        <code>scan.xml</code> generato.
+    </p>
+    {% if vlan_list %}
+    {% for vlan in vlan_list %}
+    <p class="mono" style="background:#f1f5f9; padding:0.5rem; border-radius:4px;">
+        nmap -sn -oX scan.xml {{ vlan.subnet }}
+        <span style="color:#64748b;">&nbsp;# VLAN {{ vlan.numero }}{% if vlan.nome %} — {{ vlan.nome }}{% endif %}</span>
+    </p>
+    {% endfor %}
+    {% else %}
+    <p class="mono" style="background:#f1f5f9; padding:0.5rem; border-radius:4px;">
+        nmap -sn -oX scan.xml &lt;subnet della rete cliente, es. 10.0.0.0/24&gt;
+    </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>2. Carica il file</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".xml" required>
+        <button class="btn" type="submit">Analizza file</button>
+    </form>
+</div>
+
+{% if formset is not None %}
+<div class="card">
+    <h2>3. Verifica e importa</h2>
+    {% if formset.forms %}
+    <form method="post">
+        {% csrf_token %}
+        {{ formset.management_form }}
+        <table>
+            <thead><tr><th>Importa</th><th>Nome</th><th>IP</th><th>MAC</th><th>Sezione</th><th>Tipo</th></tr></thead>
+            <tbody>
+                {% for form in formset.forms %}
+                <tr>
+                    <td>{{ form.includi }}</td>
+                    <td>{{ form.nome }}</td>
+                    <td class="mono">{{ form.indirizzo_ip.value|default:"—" }}{{ form.indirizzo_ip }}</td>
+                    <td class="mono">{{ form.indirizzo_mac.value|default:"—" }}{{ form.indirizzo_mac }}</td>
+                    <td>{{ form.sezione }}</td>
+                    <td>{{ form.tipo }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button class="btn" type="submit" name="conferma" value="1">Importa selezionati</button>
+        <a class="btn btn-secondary" href="{% url 'progetto-detail' progetto.pk %}">Annulla</a>
+    </form>
+    {% else %}
+    <p style="color:#64748b;">Nessun host trovato nel file caricato.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<p><a href="{% url 'progetto-detail' progetto.pk %}">&larr; Torna al progetto</a></p>
+{% endblock %}

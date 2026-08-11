@@ -35,6 +35,10 @@ class Sezione(models.Model):
 
     progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='sezioni')
     nome = models.CharField(max_length=255)
+    rack = models.CharField(
+        max_length=100, blank=True,
+        help_text='Rack o armadio in cui si trova questa sezione, se pertinente (es. "Rack 1", "Armadio B").',
+    )
     note = models.TextField(blank=True)
     ordine = models.PositiveIntegerField(default=0)
 

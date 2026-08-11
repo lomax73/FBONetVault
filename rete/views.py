@@ -4,15 +4,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms.formsets import DELETION_FIELD_NAME
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from . import portal_client
+from . import nmap_import, portal_client
 from .forms import (
     ApparatoAllegatoForm,
     ApparatoForm,
     CredenzialeForm,
+    ImportRigaFormSet,
     ParametroConfigForm,
     ParametroDisponibileFormSet,
     ProgettoForm,
@@ -222,6 +223,67 @@ class ApparatoDetailView(LoginRequiredMixin, DetailView):
         context['allegati'] = self.object.allegati.all()
         context['allegato_form'] = ApparatoAllegatoForm()
         return context
+
+
+@login_required
+def apparato_import(request, progetto_pk):
+    """Import guidato apparati da uno scan nmap (-oX): step 1 mostra il
+    comando nmap da eseguire in locale sulla rete del cliente (l'app gira
+    su VPS, non raggiunge quella rete), step 2 fa l'upload del file XML e
+    mostra una tabella di revisione (nome/sezione/tipo modificabili, righe
+    con IP già censito deselezionate di default) prima di creare gli
+    Apparato veri e propri."""
+
+    progetto = get_object_or_404(Progetto, pk=progetto_pk)
+    esistenti_ip = set(progetto.apparati.exclude(indirizzo_ip='').values_list('indirizzo_ip', flat=True))
+    formset = None
+
+    if request.method == 'POST' and 'conferma' in request.POST:
+        formset = ImportRigaFormSet(request.POST, prefix='riga', form_kwargs={'progetto': progetto})
+        if formset.is_valid():
+            creati = 0
+            for form in formset.forms:
+                dati = form.cleaned_data
+                if not dati or not dati.get('includi'):
+                    continue
+                apparato = Apparato.objects.create(
+                    progetto=progetto,
+                    sezione=dati.get('sezione'),
+                    tipo=dati.get('tipo'),
+                    nome=dati.get('nome') or dati.get('indirizzo_ip') or 'Apparato importato',
+                    indirizzo_ip=dati.get('indirizzo_ip', ''),
+                    indirizzo_mac=dati.get('indirizzo_mac', ''),
+                )
+                apparato.sync_parametri()
+                creati += 1
+            messages.success(
+                request, f'{creati} apparati importati.' if creati else 'Nessun apparato selezionato per l\'import.',
+            )
+            return redirect('progetto-detail', progetto.pk)
+    elif request.method == 'POST' and 'file' in request.FILES:
+        try:
+            righe = nmap_import.parse_nmap_xml(request.FILES['file'])
+        except nmap_import.NmapImportError as exc:
+            messages.error(request, f'File non valido: {exc}')
+        else:
+            if not righe:
+                messages.warning(request, 'Nessun host trovato nel file caricato.')
+            iniziali = [
+                {
+                    'includi': riga['ip'] not in esistenti_ip,
+                    'nome': riga['hostname'] or riga['ip'],
+                    'indirizzo_ip': riga['ip'],
+                    'indirizzo_mac': riga['mac'],
+                }
+                for riga in righe
+            ]
+            formset = ImportRigaFormSet(initial=iniziali, prefix='riga', form_kwargs={'progetto': progetto})
+
+    return render(request, 'rete/apparato_import.html', {
+        'progetto': progetto,
+        'vlan_list': progetto.vlan_set.exclude(subnet=''),
+        'formset': formset,
+    })
 
 
 # --- Parametri configurazione -----------------------------------------

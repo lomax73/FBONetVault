@@ -14,6 +14,7 @@ urlpatterns = [
     path('sezioni/<int:pk>/elimina/', views.SezioneDeleteView.as_view(), name='sezione-delete'),
 
     path('progetti/<int:progetto_pk>/apparati/nuovo/', views.ApparatoCreateView.as_view(), name='apparato-create'),
+    path('progetti/<int:progetto_pk>/apparati/importa/', views.apparato_import, name='apparato-import'),
     path('apparati/<int:pk>/', views.ApparatoDetailView.as_view(), name='apparato-detail'),
     path('apparati/<int:pk>/modifica/', views.ApparatoUpdateView.as_view(), name='apparato-update'),
     path('apparati/<int:pk>/elimina/', views.ApparatoDeleteView.as_view(), name='apparato-delete'),
