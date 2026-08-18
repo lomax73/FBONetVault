@@ -23,6 +23,9 @@ sudo -u netvault venv/bin/pip install -r requirements.txt
 cp .env.example .env   # poi valorizzare DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, INTERNAL_API_TOKEN,
                         # MASTER_ENCRYPTION_KEY, PORTAL_INTERNAL_BASE_URL=https://127.0.0.1:8443,
                         # PORTAL_API_TOKEN, PORTAL_PUBLIC_URL
+                        # DJANGO_DEBUG=false — .env.example lo lascia a "true", NON dimenticarlo:
+                        # con DEBUG=True qualunque eccezione espone MASTER_ENCRYPTION_KEY in
+                        # chiaro, con cui si decifrano le credenziali di TUTTI gli apparati clienti
 sudo -u netvault venv/bin/python manage.py migrate
 sudo -u netvault venv/bin/python manage.py collectstatic --noinput
 sudo -u netvault venv/bin/python manage.py createsuperuser
