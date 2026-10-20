@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load rete_extras %}
 
 {% block title %}Progetti — FBONetVault{% endblock %}
 
@@ -16,7 +17,21 @@
     <tbody>
         {% for progetto in progetti %}
         <tr>
-            <td><a href="{% url 'progetto-detail' progetto.pk %}">{{ progetto.nome }}</a></td>
+            <td>
+                <a href="{% url 'progetto-detail' progetto.pk %}">{{ progetto.nome }}</a>
+                <details class="riepilogo">
+                    <summary>Apparati ({{ progetto.n_apparati }})</summary>
+                    {% if progetto.riepilogo_tipi %}
+                    <div class="riepilogo-chips">
+                        {% for tipo in progetto.riepilogo_tipi %}
+                        <span class="chip" title="{{ tipo.nome }}">{% icona_tipo tipo.nome %}{{ tipo.nome|truncatechars:14 }} <b>{{ tipo.n }}</b></span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="color:#94a3b8; margin-top:0.4rem;">Nessun apparato ancora.</div>
+                    {% endif %}
+                </details>
+            </td>
             <td>{{ progetto.cliente.ragione_sociale }}</td>
             <td>{{ progetto.indirizzo|default:"—" }}</td>
             <td style="white-space:nowrap;">

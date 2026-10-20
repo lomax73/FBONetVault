@@ -92,7 +92,21 @@ class ProgettoListView(LoginRequiredMixin, ListView):
     context_object_name = 'progetti'
 
     def get_queryset(self):
-        return _attach_clienti(super().get_queryset())
+        progetti = _attach_clienti(super().get_queryset())
+        riepilogo = {}
+        righe = (
+            Apparato.objects.filter(progetto__in=progetti)
+            .values('progetto_id', 'tipo__nome').annotate(n=Count('id'))
+        )
+        for riga in righe:
+            riepilogo.setdefault(riga['progetto_id'], []).append(
+                {'nome': riga['tipo__nome'] or 'Senza tipo', 'n': riga['n']},
+            )
+        for progetto in progetti:
+            tipi = sorted(riepilogo.get(progetto.pk, []), key=lambda t: (-t['n'], t['nome'].lower()))
+            progetto.riepilogo_tipi = tipi
+            progetto.n_apparati = sum(t['n'] for t in tipi)
+        return progetti
 
 
 def _apparati_annidati(progetto):

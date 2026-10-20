@@ -279,3 +279,37 @@ class TelecamereNvrTests(TestCase):
         self.client.post(reverse('apparato-delete', args=[self.nvr.pk]))
         telecamera.refresh_from_db()
         self.assertIsNone(telecamera.collegato_a)
+
+
+class RiepilogoApparatiListaProgettiTests(TestCase):
+    def test_icone_dal_nome_del_tipo(self):
+        from .icone import chiave_icona
+        casi = {
+            'NVR': 'nvr', 'Telecamera': 'telecamera', 'Access Point': 'ap', 'AP': 'ap', 'Router': 'router',
+            'Switch PoE': 'switch', 'Firewall': 'firewall', 'Server': 'server', 'NAS': 'nas', 'UPS': 'ups',
+            'Stampante': 'stampante', 'Centralino VoIP': 'telefono', 'Widget': 'generico', '': 'generico',
+        }
+        for nome, chiave in casi.items():
+            self.assertEqual(chiave_icona(nome), chiave, nome)
+
+    def test_lista_progetti_riepiloga_i_tipi(self):
+        self.client.force_login(get_user_model().objects.create_user('tecnico', password='x'))
+        progetto = Progetto.objects.create(nome='Cliente test', cliente_id='00000000-0000-0000-0000-000000000001')
+        vuoto = Progetto.objects.create(nome='Vuoto', cliente_id='00000000-0000-0000-0000-000000000002')
+        switch = TipoApparato.objects.create(nome='Switch')
+        router = TipoApparato.objects.create(nome='Router')
+        for i in range(3):
+            Apparato.objects.create(progetto=progetto, nome=f's{i}', tipo=switch)
+        Apparato.objects.create(progetto=progetto, nome='r', tipo=router)
+        Apparato.objects.create(progetto=progetto, nome='x')
+        risposta = self.client.get(reverse('progetto-list'))
+        per_nome = {p.nome: p for p in risposta.context['progetti']}
+        self.assertEqual(per_nome['Cliente test'].n_apparati, 5)
+        self.assertEqual(
+            [(t['nome'], t['n']) for t in per_nome['Cliente test'].riepilogo_tipi],
+            [('Switch', 3), ('Router', 1), ('Senza tipo', 1)],
+        )
+        self.assertEqual(per_nome['Vuoto'].n_apparati, 0)
+        self.assertContains(risposta, 'Apparati (5)')
+        self.assertContains(risposta, '<svg')
+        self.assertContains(risposta, 'Nessun apparato ancora.')
