@@ -173,7 +173,9 @@ class CredenzialiCondiviseTests(TestCase):
         credenziale = self.a1.credenziali.get()
         self.assertEqual((credenziale.username, credenziale.password, credenziale.titolare), ('', '', 'tecnico'))
         self.assertEqual(credenziale.password_effettiva, 'pw-web')
-        self.assertContains(self.client.get(reverse('apparato-detail', args=[self.a1.pk])), 'pw-web')
+        dettaglio = self.client.get(reverse('apparato-detail', args=[self.a1.pk]))
+        self.assertContains(dettaglio, 'data-pwd="pw-web"')
+        self.assertNotContains(dettaglio, '>pw-web<')  # mai in chiaro nel testo visibile
 
     def test_non_si_puo_scegliere_la_condivisa_di_un_altro_progetto(self):
         estranea = CredenzialeCondivisa.objects.create(progetto=self.altro, etichetta='Estranea')

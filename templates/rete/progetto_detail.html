@@ -120,7 +120,7 @@
                 <td>{{ c.get_titolare_display }}</td>
                 <td>{{ c.etichetta }}</td>
                 <td class="mono">{{ c.username|default:"—" }}</td>
-                <td class="mono">{{ c.password|default:"—" }}</td>
+                <td class="mono">{% include "rete/_password.html" with valore=c.password %}</td>
                 <td>{{ c.n_usi }} {% if c.n_usi == 1 %}credenziale{% else %}credenziali{% endif %}</td>
                 <td style="white-space:nowrap;">
                     <a href="{% url 'credenziale-condivisa-update' c.pk %}">Modifica</a> &middot;

@@ -94,7 +94,7 @@
                 <td>{{ credenziale.get_tipo_accesso_display }}</td>
                 <td class="mono">{{ credenziale.url_porta|default:"—" }}</td>
                 <td class="mono">{{ credenziale.username_effettivo|default:"—" }}</td>
-                <td class="mono">{{ credenziale.password_effettiva|default:"—" }}</td>
+                <td class="mono">{% include "rete/_password.html" with valore=credenziale.password_effettiva %}</td>
                 <td>{{ credenziale.note|default:"—" }}</td>
                 <td style="white-space:nowrap;">
                     <a href="{% url 'credenziale-update' credenziale.pk %}">Modifica</a> &middot;
