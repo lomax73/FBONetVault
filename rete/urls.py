@@ -17,6 +17,7 @@ urlpatterns = [
     path('progetti/<int:progetto_pk>/apparati/importa/', views.apparato_import, name='apparato-import'),
     path('apparati/<int:pk>/', views.ApparatoDetailView.as_view(), name='apparato-detail'),
     path('apparati/<int:pk>/modifica/', views.ApparatoUpdateView.as_view(), name='apparato-update'),
+    path('apparati/<int:pk>/telecamere/aggiungi/', views.telecamere_aggiungi, name='telecamere-aggiungi'),
     path('apparati/<int:pk>/elimina/', views.ApparatoDeleteView.as_view(), name='apparato-delete'),
 
     path('parametri/<int:pk>/modifica/', views.ParametroConfigUpdateView.as_view(), name='parametro-update'),

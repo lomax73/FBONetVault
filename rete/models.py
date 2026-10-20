@@ -95,6 +95,11 @@ class Apparato(models.Model):
         (STATO_DISMESSO, 'Dismesso'),
     ]
 
+    collegato_a = models.ForeignKey(
+        'self', verbose_name='Collegato a', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='collegati',
+        help_text='Per apparati che dipendono da un altro, es. le telecamere di un NVR.',
+    )
     nome = models.CharField(max_length=255, help_text='Nome identificativo, es. "Switch core piano 1".')
     hostname = models.CharField(max_length=255, blank=True)
     marca_modello = models.CharField('Marca / modello', max_length=255, blank=True)

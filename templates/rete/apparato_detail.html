@@ -28,6 +28,9 @@
     <table>
         <tbody>
             <tr><th style="width:180px;">Tipo</th><td>{{ apparato.tipo|default:"—" }}</td></tr>
+            {% if apparato.collegato_a %}
+            <tr><th>Collegato a</th><td><a href="{% url 'apparato-detail' apparato.collegato_a_id %}">{{ apparato.collegato_a }}</a></td></tr>
+            {% endif %}
             <tr><th>Sezione</th><td>{{ apparato.sezione|default:"—" }}</td></tr>
             <tr><th>Hostname</th><td class="mono">{{ apparato.hostname|default:"—" }}</td></tr>
             <tr><th>Marca / modello</th><td>{{ apparato.marca_modello|default:"—" }}</td></tr>
@@ -108,6 +111,48 @@
     <p style="color:#64748b;">Nessuna credenziale ancora.</p>
     {% endif %}
 </div>
+
+{% if not apparato.collegato_a_id %}
+<div class="card">
+    <div class="section-header">
+        <h2>Apparati collegati</h2>
+        <div>
+            <a class="btn btn-small" href="{% url 'telecamere-aggiungi' apparato.pk %}">+ Aggiungi telecamere</a>
+            <a class="btn btn-small btn-secondary" href="{% url 'apparato-create' apparato.progetto_id %}?collegato_a={{ apparato.pk }}">+ Apparato singolo</a>
+        </div>
+    </div>
+    {% if collegati %}
+    <table>
+        <thead><tr><th>Nome</th><th>Tipo</th><th>IP</th><th>Marca / modello</th><th>Username</th><th>Password</th><th></th></tr></thead>
+        <tbody>
+            {% for c in collegati %}
+            <tr>
+                <td><a href="{% url 'apparato-detail' c.pk %}">{{ c.nome }}</a></td>
+                <td>{{ c.tipo|default:"—" }}</td>
+                <td class="mono">
+                    {% if c.indirizzo_ip %}
+                    <a href="{% if c.cred.url_porta %}{{ c.cred.url_porta }}{% else %}http://{{ c.indirizzo_ip }}{% endif %}" target="_blank" rel="noopener">{{ c.indirizzo_ip }}</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ c.marca_modello|default:"—" }}</td>
+                <td class="mono">{{ c.cred.username_effettivo|default:"—" }}</td>
+                <td class="mono">{% include "rete/_password.html" with valore=c.cred.password_effettiva %}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'apparato-update' c.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'apparato-delete' c.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">
+        Nessun apparato collegato. Usa "Aggiungi telecamere" per inserire in un colpo solo IP, marca/modello e login
+        delle telecamere di un NVR.
+    </p>
+    {% endif %}
+</div>
+{% endif %}
 
 <div class="card">
     <div class="section-header">

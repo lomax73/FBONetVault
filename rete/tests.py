@@ -205,3 +205,77 @@ class CredenzialiCondiviseTests(TestCase):
         risposta = self.client.get(reverse('progetto-detail', args=[self.progetto.pk]))
         self.assertContains(risposta, 'Tecnico web')
         self.assertContains(risposta, '1 credenziale')
+
+
+class TelecamereNvrTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user('tecnico', password='x'))
+        self.progetto = Progetto.objects.create(nome='Cliente test', cliente_id='00000000-0000-0000-0000-000000000001')
+        self.sezione = self.progetto.sezioni.create(nome='CED')
+        self.nvr = Apparato.objects.create(progetto=self.progetto, nome='NVR', sezione=self.sezione)
+        self.condivisa = CredenzialeCondivisa.objects.create(
+            progetto=self.progetto, etichetta='Telecamere web', titolare='cliente', username='admin', password='pw-cam',
+        )
+        self.url = reverse('telecamere-aggiungi', args=[self.nvr.pk])
+
+    def _dati(self, righe, **default):
+        dati = {'tipo_accesso': 'http', 'riga-TOTAL_FORMS': 8, 'riga-INITIAL_FORMS': 0}
+        dati.update(default)
+        for i in range(8):
+            riga = righe[i] if i < len(righe) else {}
+            for campo in ('nome', 'indirizzo_ip', 'marca_modello', 'username', 'password'):
+                dati[f'riga-{i}-{campo}'] = riga.get(campo, '')
+        return dati
+
+    def test_aggiunge_piu_telecamere_con_credenziale_condivisa_e_propria(self):
+        dati = self._dati(
+            [
+                {'indirizzo_ip': '10.0.0.11', 'marca_modello': 'Hikvision DS-2CD'},
+                {'nome': 'Ingresso', 'indirizzo_ip': '10.0.0.12', 'username': 'altro', 'password': 'pw-altra'},
+            ],
+            condivisa=self.condivisa.pk,
+        )
+        risposta = self.client.post(self.url, dati)
+        self.assertRedirects(risposta, reverse('apparato-detail', args=[self.nvr.pk]))
+        prima, seconda = self.nvr.collegati.order_by('pk')
+        self.assertEqual((prima.nome, prima.tipo.nome, prima.sezione), ('10.0.0.11', 'Telecamera', self.sezione))
+        cred = prima.credenziali.get()
+        self.assertEqual((cred.condivisa, cred.password_effettiva, cred.url_porta), (self.condivisa, 'pw-cam', 'http://10.0.0.11'))
+        cred = seconda.credenziali.get()
+        self.assertEqual((cred.condivisa, cred.username, cred.password), (None, 'altro', 'pw-altra'))
+
+    def test_login_uguale_per_tutte_e_slot_del_tipo_non_duplicato(self):
+        tipo = TipoApparato.objects.create(nome='Telecamera')
+        web = CredenzialeDisponibile.objects.create(etichetta='Web admin', tipo_accesso='http')
+        tipo.credenziali.set([web])
+        self.client.post(self.url, self._dati([{'indirizzo_ip': '10.0.0.11'}], username='root', password='1234', condivisa=''))
+        cred = self.nvr.collegati.get().credenziali.get()  # una sola: lo slot è stato compilato
+        self.assertEqual((cred.etichetta, cred.username, cred.password), ('Web admin', 'root', '1234'))
+
+    def test_riga_senza_nome_ne_ip_e_rifiutata_e_righe_vuote_ignorate(self):
+        risposta = self.client.post(self.url, self._dati([{'marca_modello': 'solo marca'}], username='x'))
+        self.assertEqual(risposta.status_code, 200)
+        self.assertFalse(self.nvr.collegati.exists())
+        self.client.post(self.url, self._dati([], username='x'))
+        self.assertFalse(self.nvr.collegati.exists())
+
+    def test_scheda_nvr_e_lista_progetto_mostrano_le_telecamere(self):
+        self.client.post(self.url, self._dati([{'indirizzo_ip': '10.0.0.11'}], condivisa=self.condivisa.pk))
+        dettaglio = self.client.get(reverse('apparato-detail', args=[self.nvr.pk]))
+        self.assertContains(dettaglio, 'Apparati collegati')
+        self.assertContains(dettaglio, 'data-pwd="pw-cam"')
+        self.assertContains(dettaglio, 'href="http://10.0.0.11"')
+        telecamera = self.nvr.collegati.get()
+        self.assertContains(self.client.get(reverse('apparato-detail', args=[telecamera.pk])), 'Collegato a')
+        self.assertContains(self.client.get(reverse('progetto-detail', args=[self.progetto.pk])), '└')
+
+    def test_collegamento_a_un_solo_livello_e_eliminazione_nvr(self):
+        self.client.post(self.url, self._dati([{'indirizzo_ip': '10.0.0.11'}], username='x'))
+        telecamera = self.nvr.collegati.get()
+        self.assertEqual(self.client.post(reverse('telecamere-aggiungi', args=[telecamera.pk])).status_code, 302)
+        form = self.client.get(reverse('apparato-update', args=[self.nvr.pk])).context['form']
+        self.assertNotIn(telecamera, form.fields['collegato_a'].queryset)
+        self.assertContains(self.client.get(reverse('apparato-delete', args=[self.nvr.pk])), 'non vengono eliminati')
+        self.client.post(reverse('apparato-delete', args=[self.nvr.pk]))
+        telecamera.refresh_from_db()
+        self.assertIsNone(telecamera.collegato_a)

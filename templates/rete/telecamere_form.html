@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Aggiungi telecamere — FBONetVault{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'apparato-detail' nvr.pk %}">{{ nvr.nome }}</a> / Aggiungi telecamere
+</div>
+<h1>Aggiungi telecamere a "{{ nvr.nome }}"</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <h2 style="margin-top:0;">Accesso all'interfaccia web</h2>
+        <p style="color:#64748b;">
+            Valori comuni a tutte le telecamere. Una riga con username o password propri usa quelli; altrimenti
+            vale la credenziale condivisa scelta qui sotto, oppure username e password per tutte.
+        </p>
+        {{ default_form.as_p }}
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Telecamere</h2>
+        <p style="color:#64748b;">Le righe lasciate vuote vengono ignorate. Sezione e tipo ("Telecamera") sono impostati in automatico.</p>
+        {{ formset.management_form }}
+        {{ formset.non_form_errors }}
+        <table>
+            <thead><tr><th>Nome</th><th>IP</th><th>Marca / modello</th><th>Username</th><th>Password</th></tr></thead>
+            <tbody>
+                {% for form in formset %}
+                <tr>
+                    <td>{{ form.nome }}{{ form.non_field_errors }}</td>
+                    <td>{{ form.indirizzo_ip }}</td>
+                    <td>{{ form.marca_modello }}</td>
+                    <td>{{ form.username }}</td>
+                    <td>{{ form.password }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <button class="btn" type="submit">Aggiungi</button>
+    <a class="btn btn-secondary" href="{% url 'apparato-detail' nvr.pk %}">Annulla</a>
+</form>
+{% endblock %}

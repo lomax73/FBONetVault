@@ -26,11 +26,14 @@ from .forms import (
     ReteInfoForm,
     ReteWirelessForm,
     SezioneForm,
+    TelecamereDefaultForm,
+    TelecameraRigaFormSet,
     TipoApparatoFormSet,
     TipoApparatoParametriForm,
     VlanForm,
 )
 from .models import (
+    TITOLARE_CLIENTE,
     Apparato,
     ApparatoAllegato,
     Credenziale,
@@ -92,6 +95,26 @@ class ProgettoListView(LoginRequiredMixin, ListView):
         return _attach_clienti(super().get_queryset())
 
 
+def _apparati_annidati(progetto):
+    """Apparati del progetto con quelli collegati (es. telecamere di un NVR)
+    subito sotto il loro apparato, marcati con `.collegato` per il rientro."""
+    apparati = list(progetto.apparati.select_related('sezione', 'tipo'))
+    figli = {}
+    for apparato in apparati:
+        if apparato.collegato_a_id:
+            figli.setdefault(apparato.collegato_a_id, []).append(apparato)
+    elenco = []
+    for apparato in apparati:
+        if apparato.collegato_a_id:
+            continue
+        apparato.collegato = False
+        elenco.append(apparato)
+        for figlio in figli.get(apparato.pk, []):
+            figlio.collegato = True
+            elenco.append(figlio)
+    return elenco
+
+
 class ProgettoDetailView(LoginRequiredMixin, DetailView):
     """Scheda progetto: dashboard con sezioni, apparati, VLAN, reti
     wireless e descrizione della rete."""
@@ -109,7 +132,7 @@ class ProgettoDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         rete_info, _ = ReteInfo.objects.get_or_create(progetto=self.object)
         context['sezioni'] = self.object.sezioni.all()
-        context['apparati'] = self.object.apparati.select_related('sezione', 'tipo')
+        context['apparati'] = _apparati_annidati(self.object)
         context['vlan_list'] = self.object.vlan_set.all()
         context['credenziali_condivise'] = self.object.credenziali_condivise.annotate(n_usi=Count('usi'))
         context['reti_wireless'] = self.object.reti_wireless.select_related('sezione', 'vlan')
@@ -253,6 +276,14 @@ class ApparatoFormMixin:
 class ApparatoCreateView(LoginRequiredMixin, ApparatoFormMixin, ProgettoScopedCreateMixin, CreateView):
     model = Apparato
 
+    def get_initial(self):
+        # ?collegato_a=<pk> dal pulsante "Apparato singolo" della scheda NVR.
+        initial = super().get_initial()
+        padre = self.request.GET.get('collegato_a', '')
+        if padre.isdigit():
+            initial['collegato_a'] = padre
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['progetto'] = Progetto.objects.get(pk=self.kwargs['progetto_pk'])
@@ -274,6 +305,16 @@ class ApparatoDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'rete/confirm_delete.html'
     extra_context = {'titolo': 'apparato'}
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        collegati = self.object.collegati.count()
+        if collegati:
+            context['avviso'] = (
+                f'I {collegati} apparati collegati (es. telecamere) non vengono eliminati: '
+                'restano nel progetto come apparati non collegati.'
+            )
+        return context
+
     def get_success_url(self):
         return reverse('progetto-detail', args=[self.object.progetto_id])
 
@@ -289,6 +330,12 @@ class ApparatoDetailView(LoginRequiredMixin, DetailView):
         context['credenziali'] = self.object.credenziali.select_related('condivisa').order_by('titolare', 'ordine', 'id')
         context['allegati'] = self.object.allegati.all()
         context['allegato_form'] = ApparatoAllegatoForm()
+        if not self.object.collegato_a_id:
+            collegati = list(self.object.collegati.select_related('tipo').prefetch_related('credenziali__condivisa'))
+            for collegato in collegati:
+                credenziali = list(collegato.credenziali.all())
+                collegato.cred = credenziali[0] if credenziali else None
+            context['collegati'] = collegati
         return context
 
 
@@ -350,6 +397,59 @@ def apparato_import(request, progetto_pk):
         'progetto': progetto,
         'vlan_list': progetto.vlan_set.exclude(subnet=''),
         'formset': formset,
+    })
+
+
+@login_required
+def telecamere_aggiungi(request, pk):
+    """Aggiunge più telecamere in una volta a un NVR: ognuna diventa un
+    Apparato di tipo "Telecamera" collegato all'NVR, con la sua credenziale
+    di accesso all'interfaccia web (propria, condivisa del progetto o
+    uguale per tutte)."""
+
+    nvr = get_object_or_404(Apparato, pk=pk)
+    if nvr.collegato_a_id:
+        messages.error(request, 'Le telecamere si aggiungono all\'NVR, non a un apparato già collegato.')
+        return redirect('apparato-detail', nvr.pk)
+    progetto = nvr.progetto
+    dati = request.POST if request.method == 'POST' else None
+    default_form = TelecamereDefaultForm(dati, progetto=progetto, initial={'tipo_accesso': 'http'})
+    formset = TelecameraRigaFormSet(dati, prefix='riga')
+
+    if request.method == 'POST' and default_form.is_valid() and formset.is_valid():
+        default = default_form.cleaned_data
+        righe = [form.cleaned_data for form in formset.forms if form.has_changed()]
+        tipo, _ = TipoApparato.objects.get_or_create(nome='Telecamera')
+        with transaction.atomic():
+            for riga in righe:
+                ip = riga.get('indirizzo_ip', '')
+                apparato = Apparato.objects.create(
+                    progetto=progetto, sezione=nvr.sezione, tipo=tipo, collegato_a=nvr,
+                    nome=riga.get('nome') or ip, indirizzo_ip=ip, marca_modello=riga.get('marca_modello', ''),
+                )
+                apparato.sync_tipo()
+                # Se il tipo prevede già una credenziale (catalogo) si compila
+                # quella, invece di crearne una seconda.
+                credenziale = apparato.credenziali.first() or Credenziale(apparato=apparato)
+                credenziale.titolare = TITOLARE_CLIENTE
+                credenziale.tipo_accesso = default['tipo_accesso']
+                credenziale.etichetta = credenziale.etichetta or 'Web admin'
+                credenziale.url_porta = f"{default['tipo_accesso']}://{ip}" if ip else ''
+                if riga.get('username') or riga.get('password'):
+                    credenziale.username = riga.get('username', '')
+                    credenziale.password = riga.get('password', '')
+                elif default['condivisa']:
+                    credenziale.condivisa = default['condivisa']
+                    credenziale.titolare = default['condivisa'].titolare
+                else:
+                    credenziale.username = default['username']
+                    credenziale.password = default['password']
+                credenziale.save()
+        messages.success(request, f'{len(righe)} telecamere aggiunte.' if righe else 'Nessuna telecamera inserita.')
+        return redirect('apparato-detail', nvr.pk)
+
+    return render(request, 'rete/telecamere_form.html', {
+        'nvr': nvr, 'default_form': default_form, 'formset': formset,
     })
 
 

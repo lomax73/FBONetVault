@@ -64,7 +64,7 @@
         <tbody>
             {% for apparato in apparati %}
             <tr>
-                <td><a href="{% url 'apparato-detail' apparato.pk %}">{{ apparato.nome }}</a></td>
+                <td{% if apparato.collegato %} style="padding-left:2rem;"{% endif %}>{% if apparato.collegato %}<span style="color:#94a3b8;">└</span> {% endif %}<a href="{% url 'apparato-detail' apparato.pk %}">{{ apparato.nome }}</a></td>
                 <td>{{ apparato.tipo|default:"—" }}</td>
                 <td>{{ apparato.sezione|default:"—" }}</td>
                 <td class="mono">{{ apparato.indirizzo_ip|default:"—" }}</td>

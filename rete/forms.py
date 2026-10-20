@@ -67,7 +67,7 @@ class ApparatoForm(forms.ModelForm):
     class Meta:
         model = Apparato
         fields = [
-            'sezione', 'tipo', 'nome', 'hostname', 'marca_modello', 'numero_seriale', 'firmware',
+            'sezione', 'tipo', 'collegato_a', 'nome', 'hostname', 'marca_modello', 'numero_seriale', 'firmware',
             'indirizzo_ip', 'indirizzo_mac', 'stato', 'data_installazione', 'note', 'ordine',
         ]
         widgets = {
@@ -80,6 +80,17 @@ class ApparatoForm(forms.ModelForm):
         progetto = progetto or getattr(self.instance, 'progetto', None)
         if progetto:
             self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
+            # Un solo livello di collegamento (NVR → telecamere): si può
+            # collegare solo a un apparato che non sia a sua volta collegato.
+            self.fields['collegato_a'].queryset = Apparato.objects.filter(
+                progetto=progetto, collegato_a=None,
+            ).exclude(pk=self.instance.pk)
+
+    def clean_collegato_a(self):
+        padre = self.cleaned_data.get('collegato_a')
+        if padre and self.instance.pk and self.instance.collegati.exists():
+            raise forms.ValidationError('Questo apparato ha già apparati collegati: non può essere collegato a sua volta.')
+        return padre
 
     nuove_righe = 0
 
@@ -88,6 +99,44 @@ class ApparatoForm(forms.ModelForm):
         if commit:
             self.nuove_righe = instance.sync_tipo()
         return instance
+
+
+class TelecamereDefaultForm(forms.Form):
+    """Valori comuni per l'aggiunta di più telecamere a un NVR (vedi
+    views.telecamere_aggiungi): login condivisa o uguale per tutte, a meno
+    che la singola riga non ne indichi una propria."""
+
+    ACCESSO_CHOICES = [('http', 'HTTP'), ('https', 'HTTPS')]
+
+    tipo_accesso = forms.ChoiceField(choices=ACCESSO_CHOICES, label='Interfaccia web')
+    condivisa = forms.ModelChoiceField(
+        queryset=CredenzialeCondivisa.objects.none(), required=False, label='Usa credenziale condivisa',
+        help_text='Se scelta, vale per tutte le righe senza login propria.',
+    )
+    username = forms.CharField(max_length=255, required=False, label='Username per tutte')
+    password = forms.CharField(max_length=255, required=False, label='Password per tutte', widget=forms.TextInput)
+
+    def __init__(self, *args, progetto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if progetto:
+            self.fields['condivisa'].queryset = CredenzialeCondivisa.objects.filter(progetto=progetto)
+
+
+class TelecameraRigaForm(forms.Form):
+    nome = forms.CharField(max_length=255, required=False)
+    indirizzo_ip = forms.CharField(max_length=100, required=False, label='IP')
+    marca_modello = forms.CharField(max_length=255, required=False, label='Marca / modello')
+    username = forms.CharField(max_length=255, required=False)
+    password = forms.CharField(max_length=255, required=False, widget=forms.TextInput)
+
+    def clean(self):
+        dati = super().clean()
+        if self.has_changed() and not (dati.get('nome') or dati.get('indirizzo_ip')):
+            raise forms.ValidationError('Indica almeno il nome o l\'IP della telecamera.')
+        return dati
+
+
+TelecameraRigaFormSet = formset_factory(TelecameraRigaForm, extra=8)
 
 
 class ParametroConfigForm(forms.ModelForm):
