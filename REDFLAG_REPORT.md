@@ -24,3 +24,15 @@ La #38 (import da IP scan) resta aperta e non banale: prima di implementarla, ch
 
 ### Per chi riprende questo progetto
 Nessun'altra nota aperta al momento su NetVault. Possibili miglioramenti futuri non richiesti esplicitamente: supporto ad altri formati di import (CSV Angry IP Scanner) se in pratica si rivela più comodo di nmap; deduplica anche per MAC oltre che per IP.
+
+## 2026-08-18 — sessione redflag
+
+### Segnalazioni FBOFlag
+- [In test, in attesa di conferma] (id 83) "DEBUG=True di default, impatto potenziale il più alto tra le app finora: MASTER_ENCRYPTION_KEY cifra le credenziali di ogni apparato di rete e le password Wi-Fi dei clienti" — verificato che in produzione `DJANGO_DEBUG=false` è già impostato correttamente (non era un rischio attivo). Aggiunto promemoria esplicito in `deploy/README.md`. Commit+push (`56ea416`), nessun deploy applicativo necessario (solo doc).
+- [In test, in attesa di conferma] (id 84) "`rete/portal_client.py`, `verify=False` verso il Portale" — stesso identico fix già applicato a FBORackReport (id 94), FBOPreventivi (id 91), FBOFiberReport (id 78): pinning del certificato self-signed del Portale (`PORTAL_INTERNAL_CA_CERT`, `_PinnedCertAdapter`) invece di disattivare la verifica. Testato in produzione prima del commit. Deployato (commit `ea8cfbb`).
+
+### Verifica rapida del codice
+Nessun bug nuovo trovato oltre alle 2 note stesse, entrambe confermate nel codice prima di procedere.
+
+### Per chi riprende questo progetto
+Entrambe le note restano `testing` su FBOFlag finché l'utente non conferma di persona: per la 83 basta dare un'occhiata al commit (solo doc); per la 84 verificare che nome/indirizzo cliente (preso dal Portale) compaiano correttamente nell'app. Il pattern `verify=False` verso il Portale resta ancora da correggere solo in `mailer` — ultima app rimasta con questo problema (già fatto in rackreport, preventivi, fiberreport, netvault, portal).
