@@ -17,7 +17,7 @@
         {{ tipo_formset.management_form }}
         <table>
             <thead>
-                <tr><th>Nome</th><th>Parametri assegnati</th><th>Ordine</th><th></th><th>Elimina</th></tr>
+                <tr><th>Nome</th><th>Parametri e credenziali assegnati</th><th>Ordine</th><th></th><th>Elimina</th></tr>
             </thead>
             <tbody>
                 {% for form in tipo_formset.forms %}
@@ -25,8 +25,8 @@
                     <td style="width:200px;">{{ form.nome }}{{ form.id }}</td>
                     <td style="color:#64748b; font-size:0.9rem;">
                         {% if form.instance.pk %}
-                            {% with parametri=form.instance.parametri.all %}
-                                {% if parametri %}{{ parametri|join:", " }}{% else %}—{% endif %}
+                            {% with parametri=form.instance.parametri.all credenziali=form.instance.credenziali.all %}
+                                {% if parametri or credenziali %}{{ parametri|join:", " }}{% if parametri and credenziali %}, {% endif %}{% for c in credenziali %}{{ c }} ({{ c.get_titolare_display }}){% if not forloop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}
                             {% endwith %}
                         {% endif %}
                     </td>
@@ -59,6 +59,32 @@
                 {% for form in parametro_formset.forms %}
                 <tr>
                     <td>{{ form.nome }}{{ form.id }}</td>
+                    <td style="width:100px;">{{ form.ordine }}</td>
+                    <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Credenziali disponibili</h2>
+        <p style="color:#64748b;">
+            Catalogo delle credenziali assegnabili a un tipo di apparato (es. "Admin cliente", "Tecnico SSH"),
+            con titolare e tipo di accesso. Si assegnano ai tipi da "Modifica parametri". Eliminare una voce non
+            cancella le credenziali già compilate sugli apparati.
+        </p>
+        {{ credenziale_formset.management_form }}
+        <table>
+            <thead>
+                <tr><th>Etichetta</th><th>Titolare</th><th>Accesso</th><th>Ordine</th><th>Elimina</th></tr>
+            </thead>
+            <tbody>
+                {% for form in credenziale_formset.forms %}
+                <tr>
+                    <td>{{ form.etichetta }}{{ form.id }}{{ form.etichetta.errors }}</td>
+                    <td style="width:200px;">{{ form.titolare }}</td>
+                    <td style="width:140px;">{{ form.tipo_accesso }}</td>
                     <td style="width:100px;">{{ form.ordine }}</td>
                     <td style="width:80px;">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
                 </tr>

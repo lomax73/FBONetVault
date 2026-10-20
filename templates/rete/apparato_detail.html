@@ -79,14 +79,22 @@
     </div>
     {% if credenziali %}
     <table>
-        <thead><tr><th>Accesso</th><th>URL / porta</th><th>Username</th><th>Password</th><th>Note</th><th></th></tr></thead>
+        <thead><tr><th>Titolare</th><th>Credenziale</th><th>Accesso</th><th>URL / porta</th><th>Username</th><th>Password</th><th>Note</th><th></th></tr></thead>
         <tbody>
             {% for credenziale in credenziali %}
             <tr>
+                <td>
+                    {% if credenziale.titolare == 'tecnico' %}<span class="badge" style="background:#6366f1;">Tecnico</span>
+                    {% else %}<span class="badge" style="background:#0ea5e9;">Cliente</span>{% endif %}
+                </td>
+                <td>
+                    {{ credenziale.etichetta|default:"—" }}
+                    {% if credenziale.condivisa %}<br><small style="color:#64748b;">condivisa: {{ credenziale.condivisa }}</small>{% endif %}
+                </td>
                 <td>{{ credenziale.get_tipo_accesso_display }}</td>
                 <td class="mono">{{ credenziale.url_porta|default:"—" }}</td>
-                <td class="mono">{{ credenziale.username|default:"—" }}</td>
-                <td class="mono">{{ credenziale.password|default:"—" }}</td>
+                <td class="mono">{{ credenziale.username_effettivo|default:"—" }}</td>
+                <td class="mono">{{ credenziale.password_effettiva|default:"—" }}</td>
                 <td>{{ credenziale.note|default:"—" }}</td>
                 <td style="white-space:nowrap;">
                     <a href="{% url 'credenziale-update' credenziale.pk %}">Modifica</a> &middot;

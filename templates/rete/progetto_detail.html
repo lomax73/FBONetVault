@@ -104,6 +104,39 @@
 
 <div class="card">
     <div class="section-header">
+        <h2>Credenziali condivise</h2>
+        <a class="btn btn-small" href="{% url 'credenziale-condivisa-create' progetto.pk %}">+ Nuova credenziale condivisa</a>
+    </div>
+    <p style="color:#64748b;">
+        Credenziali usate su più apparati (es. il tecnico di gestione): si cambiano qui una volta sola. Servizi con
+        password diverse sono voci diverse; nella scheda di ogni apparato si sceglie quale usare.
+    </p>
+    {% if credenziali_condivise %}
+    <table>
+        <thead><tr><th>Titolare</th><th>Etichetta</th><th>Username</th><th>Password</th><th>Usata da</th><th></th></tr></thead>
+        <tbody>
+            {% for c in credenziali_condivise %}
+            <tr>
+                <td>{{ c.get_titolare_display }}</td>
+                <td>{{ c.etichetta }}</td>
+                <td class="mono">{{ c.username|default:"—" }}</td>
+                <td class="mono">{{ c.password|default:"—" }}</td>
+                <td>{{ c.n_usi }} {% if c.n_usi == 1 %}credenziale{% else %}credenziali{% endif %}</td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'credenziale-condivisa-update' c.pk %}">Modifica</a> &middot;
+                    <a href="{% url 'credenziale-condivisa-delete' c.pk %}">Elimina</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">Nessuna credenziale condivisa ancora.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="section-header">
         <h2>VLAN</h2>
         <a class="btn btn-small" href="{% url 'vlan-create' progetto.pk %}">+ Nuova VLAN</a>
     </div>

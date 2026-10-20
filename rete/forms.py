@@ -1,11 +1,13 @@
 from django import forms
-from django.forms import formset_factory, modelformset_factory
+from django.forms import formset_factory, inlineformset_factory, modelformset_factory
 
 from . import portal_client
 from .models import (
     Apparato,
     ApparatoAllegato,
     Credenziale,
+    CredenzialeCondivisa,
+    CredenzialeDisponibile,
     ParametroConfig,
     ParametroDisponibile,
     Progetto,
@@ -79,10 +81,12 @@ class ApparatoForm(forms.ModelForm):
         if progetto:
             self.fields['sezione'].queryset = Sezione.objects.filter(progetto=progetto)
 
+    nuove_righe = 0
+
     def save(self, commit=True):
         instance = super().save(commit=commit)
         if commit:
-            instance.sync_parametri()
+            self.nuove_righe = instance.sync_tipo()
         return instance
 
 
@@ -93,14 +97,60 @@ class ParametroConfigForm(forms.ModelForm):
         widgets = {'valore': forms.Textarea(attrs={'rows': 2})}
 
 
-class CredenzialeForm(forms.ModelForm):
+class CredenzialeCondivisaForm(forms.ModelForm):
     class Meta:
-        model = Credenziale
-        fields = ['tipo_accesso', 'url_porta', 'username', 'password', 'note', 'ordine']
+        model = CredenzialeCondivisa
+        fields = ['etichetta', 'titolare', 'username', 'password', 'note']
         widgets = {
             'password': forms.TextInput(),
             'note': forms.Textarea(attrs={'rows': 2}),
         }
+
+
+class CredenzialeForm(forms.ModelForm):
+    class Meta:
+        model = Credenziale
+        fields = [
+            'etichetta', 'titolare', 'tipo_accesso', 'url_porta', 'condivisa', 'username', 'password', 'note',
+            'ordine',
+        ]
+        widgets = {
+            'password': forms.TextInput(),
+            'note': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, progetto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if progetto is None and self.instance.apparato_id:
+            progetto = self.instance.apparato.progetto
+        self.fields['condivisa'].queryset = (
+            CredenzialeCondivisa.objects.filter(progetto=progetto) if progetto
+            else CredenzialeCondivisa.objects.none()
+        )
+
+    def clean(self):
+        dati = super().clean()
+        condivisa = dati.get('condivisa')
+        if condivisa:
+            # Username e password stanno solo sulla credenziale condivisa:
+            # non si tiene una copia che resterebbe vecchia al primo cambio.
+            dati['username'] = ''
+            dati['password'] = ''
+            dati['titolare'] = condivisa.titolare
+        return dati
+
+
+# Parametri e credenziali di un apparato si compilano nella stessa pagina
+# dei campi base (vedi views.ApparatoFormMixin).
+ParametroConfigInlineFormSet = inlineformset_factory(
+    Apparato, ParametroConfig, form=ParametroConfigForm, extra=0, can_delete=False,
+)
+
+CredenzialeInlineFormSet = inlineformset_factory(
+    Apparato, Credenziale, form=CredenzialeForm,
+    fields=['etichetta', 'titolare', 'tipo_accesso', 'url_porta', 'condivisa', 'username', 'password', 'note'],
+    extra=1, can_delete=True,
+)
 
 
 class ApparatoAllegatoForm(forms.ModelForm):
@@ -164,14 +214,21 @@ ImportRigaFormSet = formset_factory(ImportRigaForm, extra=0)
 class TipoApparatoParametriForm(forms.ModelForm):
     class Meta:
         model = TipoApparato
-        fields = ['parametri']
-        widgets = {'parametri': forms.CheckboxSelectMultiple}
-        labels = {'parametri': ''}
+        fields = ['parametri', 'credenziali']
+        widgets = {'parametri': forms.CheckboxSelectMultiple, 'credenziali': forms.CheckboxSelectMultiple}
+        labels = {'parametri': '', 'credenziali': ''}
 
 
 TipoApparatoFormSet = modelformset_factory(
     TipoApparato,
     fields=['nome', 'ordine'],
+    extra=1,
+    can_delete=True,
+)
+
+CredenzialeDisponibileFormSet = modelformset_factory(
+    CredenzialeDisponibile,
+    fields=['etichetta', 'titolare', 'tipo_accesso', 'ordine'],
     extra=1,
     can_delete=True,
 )

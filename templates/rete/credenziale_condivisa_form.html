@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Credenziale condivisa — FBONetVault{% endblock %}
+
+{% block content %}
+<h1>{% if object %}Modifica credenziale condivisa{% else %}Nuova credenziale condivisa{% endif %}</h1>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Salva</button>
+        {% if object %}
+        <a class="btn btn-secondary" href="{% url 'progetto-detail' object.progetto_id %}">Annulla</a>
+        {% else %}
+        <a class="btn btn-secondary" href="{% url 'progetto-detail' progetto_pk %}">Annulla</a>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

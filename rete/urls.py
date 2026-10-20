@@ -29,6 +29,19 @@ urlpatterns = [
     path('credenziali/<int:pk>/elimina/', views.CredenzialeDeleteView.as_view(), name='credenziale-delete'),
 
     path(
+        'progetti/<int:progetto_pk>/credenziali-condivise/nuova/',
+        views.CredenzialeCondivisaCreateView.as_view(), name='credenziale-condivisa-create',
+    ),
+    path(
+        'credenziali-condivise/<int:pk>/modifica/',
+        views.CredenzialeCondivisaUpdateView.as_view(), name='credenziale-condivisa-update',
+    ),
+    path(
+        'credenziali-condivise/<int:pk>/elimina/',
+        views.CredenzialeCondivisaDeleteView.as_view(), name='credenziale-condivisa-delete',
+    ),
+
+    path(
         'apparati/<int:apparato_pk>/allegati/nuovo/',
         views.ApparatoAllegatoCreateView.as_view(), name='allegato-create',
     ),

@@ -15,12 +15,13 @@
 <div class="breadcrumb"><a href="{% url 'configurazione' %}">Configurazione</a> / Parametri "{{ object.nome }}"</div>
 <h1>Parametri di "{{ object.nome }}"</h1>
 <p style="color:#64748b;">
-    Scegli quali parametri di configurazione aggiuntivi avranno gli apparati di tipo "{{ object.nome }}".
+    Scegli quali parametri di configurazione aggiuntivi e quali credenziali avranno gli apparati di tipo "{{ object.nome }}".
     Gli apparati già esistenti di questo tipo verranno aggiornati di conseguenza.
 </p>
 <div class="card">
     <form method="post">
         {% csrf_token %}
+        <h2 style="margin-top:0;">Parametri di configurazione</h2>
         <div class="parametri-checklist">
             {{ form.parametri }}
         </div>
@@ -28,6 +29,19 @@
         <p style="color:#64748b;">
             Nessun parametro disponibile ancora. Aggiungine in "Parametri di configurazione disponibili" nella
             pagina Configurazione.
+        </p>
+        {% endif %}
+        <h2>Credenziali previste</h2>
+        <p style="color:#64748b;">
+            Ogni apparato di questo tipo avrà una riga di credenziale vuota per ciascuna voce scelta qui,
+            già pronta da compilare. Togliere una voce non cancella le credenziali già inserite.
+        </p>
+        <div class="parametri-checklist">
+            {{ form.credenziali }}
+        </div>
+        {% if not form.fields.credenziali.queryset %}
+        <p style="color:#64748b;">
+            Nessuna credenziale disponibile ancora. Aggiungine in "Credenziali disponibili" nella pagina Configurazione.
         </p>
         {% endif %}
         <button class="btn" type="submit" style="margin-top:1rem;">Salva</button>

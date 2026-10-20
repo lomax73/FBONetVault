@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
+from django.db.models import Count
 from django.forms.formsets import DELETION_FIELD_NAME
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,9 +14,13 @@ from . import nmap_import, portal_client
 from .forms import (
     ApparatoAllegatoForm,
     ApparatoForm,
+    CredenzialeCondivisaForm,
+    CredenzialeDisponibileFormSet,
     CredenzialeForm,
+    CredenzialeInlineFormSet,
     ImportRigaFormSet,
     ParametroConfigForm,
+    ParametroConfigInlineFormSet,
     ParametroDisponibileFormSet,
     ProgettoForm,
     ReteInfoForm,
@@ -28,6 +34,8 @@ from .models import (
     Apparato,
     ApparatoAllegato,
     Credenziale,
+    CredenzialeCondivisa,
+    CredenzialeDisponibile,
     ParametroConfig,
     ParametroDisponibile,
     Progetto,
@@ -103,6 +111,7 @@ class ProgettoDetailView(LoginRequiredMixin, DetailView):
         context['sezioni'] = self.object.sezioni.all()
         context['apparati'] = self.object.apparati.select_related('sezione', 'tipo')
         context['vlan_list'] = self.object.vlan_set.all()
+        context['credenziali_condivise'] = self.object.credenziali_condivise.annotate(n_usi=Count('usi'))
         context['reti_wireless'] = self.object.reti_wireless.select_related('sezione', 'vlan')
         context['rete_info'] = rete_info
         return context
@@ -179,27 +188,85 @@ class SezioneDeleteView(LoginRequiredMixin, DeleteView):
 
 # --- Apparati ----------------------------------------------------------
 
-class ApparatoCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
-    model = Apparato
-    form_class = ApparatoForm
+class ApparatoFormMixin:
+    """Scheda apparato unica: campi base, parametri di configurazione e
+    credenziali (cliente/tecnico) si compilano e si salvano insieme.
+
+    Parametri e credenziali "previsti" dal tipo vengono creati vuoti da
+    Apparato.sync_tipo() al salvataggio: se in questo salvataggio ne sono
+    comparsi di nuovi (primo salvataggio o cambio di tipo) si resta sulla
+    pagina di modifica per compilarli, altrimenti si va al dettaglio."""
+
     template_name = 'rete/apparato_form.html'
+    form_class = ApparatoForm
+
+    def get_formsets(self):
+        kwargs = {'instance': self.object}
+        if self.request.method == 'POST':
+            kwargs['data'] = self.request.POST
+        progetto = self.object.progetto if self.object else Progetto.objects.get(pk=self.kwargs['progetto_pk'])
+        return {
+            'parametri_formset': ParametroConfigInlineFormSet(prefix='parametri', **kwargs),
+            'credenziali_formset': CredenzialeInlineFormSet(
+                prefix='credenziali', form_kwargs={'progetto': progetto}, **kwargs,
+            ),
+        }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for nome, formset in self.get_formsets().items():
+            context.setdefault(nome, formset)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object() if 'pk' in self.kwargs else None
+        form = self.get_form()
+        formsets = self.get_formsets()
+        if form.is_valid() and all(formset.is_valid() for formset in formsets.values()):
+            return self.salva(form, formsets)
+        return self.render_to_response(self.get_context_data(form=form, **formsets))
+
+    def salva(self, form, formsets):
+        with transaction.atomic():
+            if self.object is not None:
+                # In modifica i formset vanno salvati prima del form: il
+                # salvataggio del form allinea i parametri al tipo e può
+                # eliminarne alcuni, che il formset altrimenti ricreerebbe.
+                for formset in formsets.values():
+                    formset.save()
+                self.object = form.save()
+            else:
+                self.object = form.save()
+                for formset in formsets.values():
+                    formset.instance = self.object
+                    formset.save()
+        self.nuove_righe = form.nuove_righe
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        if self.nuove_righe:
+            messages.info(self.request, 'Compila i parametri e le credenziali previsti per questo tipo di apparato.')
+            return reverse('apparato-update', args=[self.object.pk])
+        return reverse('apparato-detail', args=[self.object.pk])
+
+
+class ApparatoCreateView(LoginRequiredMixin, ApparatoFormMixin, ProgettoScopedCreateMixin, CreateView):
+    model = Apparato
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['progetto'] = Progetto.objects.get(pk=self.kwargs['progetto_pk'])
         return kwargs
 
-    def get_success_url(self):
-        return reverse('apparato-detail', args=[self.object.pk])
+    def salva(self, form, formsets):
+        # post() di ApparatoFormMixin non passa da form_valid(), dove
+        # ProgettoScopedCreateMixin imposterebbe il progetto.
+        form.instance.progetto_id = self.kwargs['progetto_pk']
+        return super().salva(form, formsets)
 
 
-class ApparatoUpdateView(LoginRequiredMixin, UpdateView):
+class ApparatoUpdateView(LoginRequiredMixin, ApparatoFormMixin, UpdateView):
     model = Apparato
-    form_class = ApparatoForm
-    template_name = 'rete/apparato_form.html'
-
-    def get_success_url(self):
-        return reverse('apparato-detail', args=[self.object.pk])
 
 
 class ApparatoDeleteView(LoginRequiredMixin, DeleteView):
@@ -219,7 +286,7 @@ class ApparatoDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['parametri'] = self.object.parametri.select_related('definizione')
-        context['credenziali'] = self.object.credenziali.all()
+        context['credenziali'] = self.object.credenziali.select_related('condivisa').order_by('titolare', 'ordine', 'id')
         context['allegati'] = self.object.allegati.all()
         context['allegato_form'] = ApparatoAllegatoForm()
         return context
@@ -254,7 +321,7 @@ def apparato_import(request, progetto_pk):
                     indirizzo_ip=dati.get('indirizzo_ip', ''),
                     indirizzo_mac=dati.get('indirizzo_mac', ''),
                 )
-                apparato.sync_parametri()
+                apparato.sync_tipo()
                 creati += 1
             messages.success(
                 request, f'{creati} apparati importati.' if creati else 'Nessun apparato selezionato per l\'import.',
@@ -317,6 +384,11 @@ class CredenzialeCreateView(LoginRequiredMixin, CreateView):
     form_class = CredenzialeForm
     template_name = 'rete/credenziale_form.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['progetto'] = get_object_or_404(Apparato, pk=self.kwargs['apparato_pk']).progetto
+        return kwargs
+
     def form_valid(self, form):
         form.instance.apparato_id = self.kwargs['apparato_pk']
         return super().form_valid(form)
@@ -348,12 +420,46 @@ class CredenzialeDeleteView(LoginRequiredMixin, DeleteView):
         return reverse('apparato-detail', args=[self.object.apparato_id])
 
 
+# --- Credenziali condivise del progetto -------------------------------------
+
+class CredenzialeCondivisaCreateView(LoginRequiredMixin, ProgettoScopedCreateMixin, CreateView):
+    model = CredenzialeCondivisa
+    form_class = CredenzialeCondivisaForm
+    template_name = 'rete/credenziale_condivisa_form.html'
+
+
+class CredenzialeCondivisaUpdateView(LoginRequiredMixin, UpdateView):
+    model = CredenzialeCondivisa
+    form_class = CredenzialeCondivisaForm
+    template_name = 'rete/credenziale_condivisa_form.html'
+
+    def get_success_url(self):
+        return reverse('progetto-detail', args=[self.object.progetto_id])
+
+
+class CredenzialeCondivisaDeleteView(LoginRequiredMixin, DeleteView):
+    model = CredenzialeCondivisa
+    template_name = 'rete/confirm_delete.html'
+    extra_context = {
+        'titolo': 'credenziale condivisa',
+        'avviso': 'Gli apparati che la usano ne conservano username e password come credenziali proprie.',
+    }
+
+    def get_success_url(self):
+        return reverse('progetto-detail', args=[self.object.progetto_id])
+
+
 # --- Allegati (backup / note di configurazione) ---------------------------
 
 class ApparatoAllegatoCreateView(LoginRequiredMixin, CreateView):
     model = ApparatoAllegato
     form_class = ApparatoAllegatoForm
     template_name = 'rete/allegato_form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['progetto'] = get_object_or_404(Apparato, pk=self.kwargs['apparato_pk']).progetto
+        return kwargs
 
     def form_valid(self, form):
         form.instance.apparato_id = self.kwargs['apparato_pk']
@@ -456,7 +562,10 @@ def configurazione(request):
         parametro_formset = ParametroDisponibileFormSet(
             request.POST, prefix='parametrodisponibile', queryset=ParametroDisponibile.objects.all(),
         )
-        if tipo_formset.is_valid() and parametro_formset.is_valid():
+        credenziale_formset = CredenzialeDisponibileFormSet(
+            request.POST, prefix='credenzialedisponibile', queryset=CredenzialeDisponibile.objects.all(),
+        )
+        if tipo_formset.is_valid() and parametro_formset.is_valid() and credenziale_formset.is_valid():
             protetti = []
             for form in parametro_formset.deleted_forms:
                 definizione = form.instance
@@ -470,6 +579,7 @@ def configurazione(request):
                 del parametro_formset._deleted_form_indexes
             tipo_formset.save()
             parametro_formset.save()
+            credenziale_formset.save()
             if protetti:
                 messages.error(
                     request,
@@ -483,9 +593,13 @@ def configurazione(request):
         parametro_formset = ParametroDisponibileFormSet(
             prefix='parametrodisponibile', queryset=ParametroDisponibile.objects.all(),
         )
+        credenziale_formset = CredenzialeDisponibileFormSet(
+            prefix='credenzialedisponibile', queryset=CredenzialeDisponibile.objects.all(),
+        )
     return render(request, 'rete/configurazione.html', {
         'tipo_formset': tipo_formset,
         'parametro_formset': parametro_formset,
+        'credenziale_formset': credenziale_formset,
     })
 
 
@@ -502,8 +616,8 @@ class TipoApparatoParametriUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         for apparato in self.object.apparati.all():
-            apparato.sync_parametri()
-        messages.success(self.request, f'Parametri di "{self.object}" aggiornati.')
+            apparato.sync_tipo()
+        messages.success(self.request, f'Parametri e credenziali di "{self.object}" aggiornati.')
         return response
 
     def get_success_url(self):

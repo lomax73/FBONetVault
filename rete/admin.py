@@ -4,6 +4,8 @@ from .models import (
     Apparato,
     ApparatoAllegato,
     Credenziale,
+    CredenzialeCondivisa,
+    CredenzialeDisponibile,
     ParametroConfig,
     ParametroDisponibile,
     Progetto,
@@ -30,12 +32,22 @@ class SezioneAdmin(admin.ModelAdmin):
 @admin.register(TipoApparato)
 class TipoApparatoAdmin(admin.ModelAdmin):
     list_display = ('nome', 'ordine')
-    filter_horizontal = ('parametri',)
+    filter_horizontal = ('parametri', 'credenziali')
 
 
 @admin.register(ParametroDisponibile)
 class ParametroDisponibileAdmin(admin.ModelAdmin):
     list_display = ('nome', 'ordine')
+
+
+@admin.register(CredenzialeCondivisa)
+class CredenzialeCondivisaAdmin(admin.ModelAdmin):
+    list_display = ('etichetta', 'progetto', 'titolare', 'username')
+
+
+@admin.register(CredenzialeDisponibile)
+class CredenzialeDisponibileAdmin(admin.ModelAdmin):
+    list_display = ('etichetta', 'titolare', 'tipo_accesso', 'ordine')
 
 
 class ParametroConfigInline(admin.TabularInline):

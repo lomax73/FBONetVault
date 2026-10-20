@@ -2,18 +2,68 @@
 
 {% block title %}Apparato — FBONetVault{% endblock %}
 
+{% block extra_head %}
+<style>
+    .cred-riga { border: 1px solid var(--line, #e2e8f0); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }
+    .cred-riga p { margin: 0 0 0.5rem; }
+    .cred-riga-vuota { background: rgba(100, 116, 139, 0.06); }
+</style>
+{% endblock %}
+
 {% block content %}
 <h1>{% if object %}Modifica apparato{% else %}Nuovo apparato{% endif %}</h1>
-<div class="card">
-    <form method="post">
-        {% csrf_token %}
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
         {{ form.as_p }}
-        <button class="btn" type="submit">Salva</button>
-        {% if object %}
-        <a class="btn btn-secondary" href="{% url 'progetto-detail' object.progetto_id %}">Annulla</a>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Parametri di configurazione</h2>
+        {{ parametri_formset.management_form }}
+        {% if parametri_formset.forms %}
+        <table>
+            <thead><tr><th>Parametro</th><th>Valore</th><th>Note</th></tr></thead>
+            <tbody>
+                {% for pform in parametri_formset %}
+                <tr>
+                    <td>{{ pform.instance.definizione.nome }}{{ pform.id }}{{ pform.apparato }}</td>
+                    <td>{{ pform.valore }}{{ pform.valore.errors }}</td>
+                    <td>{{ pform.note }}{{ pform.note.errors }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% else %}
-        <a class="btn btn-secondary" href="{% url 'progetto-detail' progetto_pk %}">Annulla</a>
+        <p style="color:#64748b;">
+            Nessun parametro: assegna un tipo all'apparato e salva per ottenere i parametri previsti per quel tipo
+            (si gestiscono in Configurazione).
+        </p>
         {% endif %}
-    </form>
-</div>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Credenziali di accesso</h2>
+        <p style="color:#64748b;">
+            Credenziali del cliente o del tecnico di gestione. Le righe previste dal tipo di apparato compaiono
+            dopo il salvataggio; l'ultima riga vuota serve ad aggiungerne un'altra.
+        </p>
+        {{ credenziali_formset.management_form }}
+        {{ credenziali_formset.non_form_errors }}
+        {% for cform in credenziali_formset %}
+        <div class="cred-riga{% if not cform.instance.pk %} cred-riga-vuota{% endif %}">
+            {{ cform.id }}{{ cform.apparato }}
+            {{ cform.non_field_errors }}
+            {{ cform.as_p }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <button class="btn" type="submit">Salva</button>
+    {% if object %}
+    <a class="btn btn-secondary" href="{% url 'apparato-detail' object.pk %}">Annulla</a>
+    {% else %}
+    <a class="btn btn-secondary" href="{% url 'progetto-detail' progetto_pk %}">Annulla</a>
+    {% endif %}
+</form>
 {% endblock %}

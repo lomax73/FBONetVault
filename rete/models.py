@@ -62,6 +62,11 @@ class TipoApparato(models.Model):
         verbose_name='Parametri di configurazione',
         help_text='Un apparato di questo tipo avrà questi parametri (oltre ai campi base) nella sua scheda.',
     )
+    credenziali = models.ManyToManyField(
+        'CredenzialeDisponibile', blank=True, related_name='tipi_apparato',
+        verbose_name='Credenziali previste',
+        help_text='Un apparato di questo tipo avrà queste credenziali già pronte da compilare.',
+    )
     ordine = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -114,13 +119,40 @@ class Apparato(models.Model):
         """Allinea i ParametroConfig di questo apparato ai parametri
         previsti dal suo tipo (crea quelli mancanti, rimuove quelli non
         più previsti). Va richiamato ogni volta che l'apparato viene
-        salvato o quando cambia l'elenco parametri del tipo."""
+        salvato o quando cambia l'elenco parametri del tipo. Restituisce
+        quante righe ha creato."""
         attese = set(self.tipo.parametri.all()) if self.tipo_id else set()
         esistenti = {p.definizione: p for p in self.parametri.select_related('definizione')}
         for definizione in attese - esistenti.keys():
             self.parametri.create(definizione=definizione)
         for definizione in esistenti.keys() - attese:
             esistenti[definizione].delete()
+        return len(attese - esistenti.keys())
+
+    def sync_credenziali(self):
+        """Crea le Credenziale (vuote, da compilare) previste dal tipo che
+        l'apparato non ha ancora. A differenza dei parametri non toglie mai
+        nulla: sono dati sensibili, quindi se il tipo smette di prevedere
+        una credenziale quella già inserita resta. Restituisce quante righe
+        ha creato."""
+        if not self.tipo_id:
+            return 0
+        presenti = set(self.credenziali.exclude(definizione=None).values_list('definizione_id', flat=True))
+        create = 0
+        for definizione in self.tipo.credenziali.all():
+            if definizione.pk in presenti:
+                continue
+            self.credenziali.create(
+                definizione=definizione, etichetta=definizione.etichetta, titolare=definizione.titolare,
+                tipo_accesso=definizione.tipo_accesso, ordine=definizione.ordine,
+            )
+            create += 1
+        return create
+
+    def sync_tipo(self):
+        """Parametri e credenziali previsti dal tipo; restituisce quante
+        righe nuove sono apparse da compilare."""
+        return self.sync_parametri() + self.sync_credenziali()
 
 
 class ParametroDisponibile(models.Model):
@@ -161,25 +193,98 @@ class ParametroConfig(models.Model):
         return self.definizione.nome
 
 
-class Credenziale(models.Model):
-    ACCESSO_SSH = 'ssh'
-    ACCESSO_HTTPS = 'https'
-    ACCESSO_HTTP = 'http'
-    ACCESSO_TELNET = 'telnet'
-    ACCESSO_CONSOLE = 'console'
-    ACCESSO_CLOUD = 'cloud'
-    ACCESSO_ALTRO = 'altro'
-    ACCESSO_CHOICES = [
-        (ACCESSO_SSH, 'SSH'),
-        (ACCESSO_HTTPS, 'HTTPS'),
-        (ACCESSO_HTTP, 'HTTP'),
-        (ACCESSO_TELNET, 'Telnet'),
-        (ACCESSO_CONSOLE, 'Console'),
-        (ACCESSO_CLOUD, 'Cloud'),
-        (ACCESSO_ALTRO, 'Altro'),
-    ]
+TITOLARE_CLIENTE = 'cliente'
+TITOLARE_TECNICO = 'tecnico'
+TITOLARE_CHOICES = [
+    (TITOLARE_CLIENTE, 'Cliente'),
+    (TITOLARE_TECNICO, 'Tecnico di gestione'),
+]
 
+
+ACCESSO_SSH = 'ssh'
+ACCESSO_HTTPS = 'https'
+ACCESSO_HTTP = 'http'
+ACCESSO_TELNET = 'telnet'
+ACCESSO_CONSOLE = 'console'
+ACCESSO_CLOUD = 'cloud'
+ACCESSO_ALTRO = 'altro'
+ACCESSO_CHOICES = [
+    (ACCESSO_SSH, 'SSH'),
+    (ACCESSO_HTTPS, 'HTTPS'),
+    (ACCESSO_HTTP, 'HTTP'),
+    (ACCESSO_TELNET, 'Telnet'),
+    (ACCESSO_CONSOLE, 'Console'),
+    (ACCESSO_CLOUD, 'Cloud'),
+    (ACCESSO_ALTRO, 'Altro'),
+]
+
+
+class CredenzialeDisponibile(models.Model):
+    """Catalogo delle credenziali previste per un tipo di apparato (es.
+    "Admin cliente — HTTPS", "Tecnico — SSH"), gestito in Configurazione:
+    un apparato eredita dal suo tipo una Credenziale vuota per ognuna."""
+
+    etichetta = models.CharField(max_length=255, unique=True)
+    titolare = models.CharField(
+        max_length=20, choices=TITOLARE_CHOICES, default=TITOLARE_CLIENTE,
+    )
+    tipo_accesso = models.CharField('Tipo accesso', max_length=20, choices=ACCESSO_CHOICES, default='ssh')
+    ordine = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['ordine', 'etichetta']
+        verbose_name = 'credenziale disponibile'
+        verbose_name_plural = 'credenziali disponibili'
+
+    def __str__(self):
+        return self.etichetta
+
+
+class CredenzialeCondivisa(models.Model):
+    """Credenziale riusabile del progetto (es. "Tecnico FBO — web admin",
+    "Cliente — SSH"): più righe Credenziale di apparati diversi possono
+    collegarsi alla stessa, così la password si cambia in un punto solo.
+    Servizi con password diverse sono voci diverse; una riga che non si
+    collega a nessuna voce tiene username e password propri."""
+
+    progetto = models.ForeignKey(Progetto, on_delete=models.CASCADE, related_name='credenziali_condivise')
+    etichetta = models.CharField(max_length=255, help_text='Es. "Tecnico FBO — web admin".')
+    titolare = models.CharField(max_length=20, choices=TITOLARE_CHOICES, default=TITOLARE_TECNICO)
+    username = models.CharField(max_length=255, blank=True)
+    password = EncryptedCharField(blank=True, null=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['titolare', 'etichetta']
+        unique_together = ['progetto', 'etichetta']
+        verbose_name = 'credenziale condivisa'
+        verbose_name_plural = 'credenziali condivise'
+
+    def __str__(self):
+        return self.etichetta
+
+    def delete(self, *args, **kwargs):
+        """Prima di eliminarla scrive username e password nelle righe che
+        la usavano, così nessun apparato resta senza credenziali."""
+        for credenziale in self.usi.all():
+            credenziale.username = self.username
+            credenziale.password = self.password
+            credenziale.save(update_fields=['username', 'password'])
+        return super().delete(*args, **kwargs)
+
+
+class Credenziale(models.Model):
     apparato = models.ForeignKey(Apparato, on_delete=models.CASCADE, related_name='credenziali')
+    definizione = models.ForeignKey(
+        CredenzialeDisponibile, null=True, blank=True, on_delete=models.SET_NULL, related_name='usi',
+    )
+    condivisa = models.ForeignKey(
+        CredenzialeCondivisa, null=True, blank=True, on_delete=models.SET_NULL, related_name='usi',
+        verbose_name='Usa credenziale condivisa',
+        help_text='Se scelta, username e password sono quelli della credenziale condivisa del progetto.',
+    )
+    etichetta = models.CharField(max_length=255, blank=True, help_text='Es. "Admin cliente".')
+    titolare = models.CharField(max_length=20, choices=TITOLARE_CHOICES, default=TITOLARE_CLIENTE)
     tipo_accesso = models.CharField('Tipo accesso', max_length=20, choices=ACCESSO_CHOICES, default=ACCESSO_SSH)
     url_porta = models.CharField(
         'URL / porta', max_length=255, blank=True,
@@ -194,8 +299,16 @@ class Credenziale(models.Model):
         ordering = ['ordine', 'id']
         verbose_name_plural = 'credenziali'
 
+    @property
+    def username_effettivo(self):
+        return self.condivisa.username if self.condivisa_id else self.username
+
+    @property
+    def password_effettiva(self):
+        return self.condivisa.password if self.condivisa_id else self.password
+
     def __str__(self):
-        return f'{self.get_tipo_accesso_display()} — {self.username or "?"}'
+        return f'{self.etichetta or self.get_tipo_accesso_display()} — {self.username_effettivo or "?"}'
 
 
 class ApparatoAllegato(models.Model):
